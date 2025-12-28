@@ -2,23 +2,28 @@ import {
   ArrowLeft,
   Truck,
   Plane,
-  Ship,
   Clock,
   DollarSign,
   Check,
   Bot,
+  Map,
+  Loader2, // 引入 Loading 图标
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
+import { StepIndicator } from "./StepIndicator";
+
+// 引入你之前写的 API (如果没有 api 文件，这里会报错，可以先注释掉)
+// import { createOrder } from "../api/orderApi";
 
 export function DeliveryOptions() {
   const navigate = useNavigate();
   const location = useLocation();
   const shippingData = location.state;
   const [selectedMethod, setSelectedMethod] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect to shipping form if no shipping data exists
   useEffect(() => {
     if (!shippingData) {
       navigate("/dashboard/new-order");
@@ -31,88 +36,68 @@ export function DeliveryOptions() {
       name: "Robot Delivery",
       icon: Bot,
       duration: "30-50 min",
-      price: 1,
-      description: "Cheap",
+      price: 15.0,
+      description:
+        "Eco-friendly autonomous robot. Best for local ground delivery.",
+      color: "blue",
     },
     {
       id: "express",
       name: "Drone Delivery",
       icon: Plane,
       duration: "5-10 min",
-      price: 2,
-      description: "Fast",
+      price: 28.5,
+      description: "High-speed aerial drone. Best for urgent small packages.",
+      color: "purple",
     },
   ];
 
-  // 点击确认，需要在这里发订单信息到后端，然后跳转到订单列表页面/支付
-  const handleConfirm = () => {
-    if (selectedMethod) {
-      const method = deliveryMethods.find((m) => m.id === selectedMethod);
-      const orderData = {
-        ...shippingData,
-        deliveryMethod: method,
-      };
-      console.log("Order confirmed:", orderData);
-      // 跳转到订单列表页面/支付
+  const handleConfirm = async () => {
+    if (!selectedMethod) return;
+
+    setIsSubmitting(true);
+    const method = deliveryMethods.find((m) => m.id === selectedMethod);
+    const orderData = {
+      ...shippingData,
+      deliveryMethod: method.id,
+      price: method.price,
+      // estimatedTime: ...
+    };
+
+    console.log("Submitting Order:", orderData);
+
+    // 模拟 API 调用延迟
+    setTimeout(() => {
+      setIsSubmitting(false);
+      // 这里应该调用 API: await createOrder(orderData);
+      alert("Order Successfully Created!");
       navigate("/dashboard/orders");
-    }
+    }, 1500);
   };
 
   const handleBack = () => {
-    // Pass the data back so user doesn't lose their form input
     navigate("/dashboard/new-order", { state: shippingData });
   };
 
-  // Don't render if no shipping data (will redirect via useEffect)
-  if (!shippingData) {
-    return null;
-  }
+  if (!shippingData) return null;
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6 flex items-center gap-4">
+    <div className="max-w-4xl mx-auto pb-10">
+      <StepIndicator currentStep={2} />
+
+      <div className="mb-8 flex items-center gap-4">
         <Button
           onClick={handleBack}
           variant="ghost"
           size="icon"
-          className="p-2"
+          className="hover:bg-gray-100 rounded-full"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-6 h-6 text-gray-700" />
         </Button>
-        <h1>Choose Delivery Method</h1>
+        <h1 className="text-2xl font-bold">Choose Delivery Method</h1>
       </div>
 
-      {/* Shipment Summary */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <h3 className="text-gray-900 mb-3">Shipment Details</h3>
-        <div className="grid grid-cols-2 gap-4 text-gray-600">
-          <div>
-            <span className="block mb-1">From:</span>
-            <p>{shippingData.fromAddress}</p>
-          </div>
-          <div>
-            <span className="block mb-1">To:</span>
-            <p>{shippingData.toAddress}</p>
-          </div>
-          <div>
-            <span className="block">Items:</span>
-            <p>{shippingData.items.length} item(s)</p>
-          </div>
-          <div>
-            <span className="block">Total Weight:</span>
-            <p>
-              {/* 总重量 */}
-              {shippingData.items
-                .map((item) => Number(item.weight))
-                .reduce((a, b) => a + b, 0)}
-              kg
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 选择运输方式 */}
-      <div className="space-y-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {deliveryMethods.map((method) => {
           const Icon = method.icon;
           const isSelected = selectedMethod === method.id;
@@ -120,91 +105,87 @@ export function DeliveryOptions() {
           return (
             <div
               key={method.id}
-              className={`w-full bg-white rounded-lg border-2 p-4 transition-all ${
-                isSelected
-                  ? "border-blue-600 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
+              onClick={() => setSelectedMethod(method.id)}
+              className={`
+                  relative cursor-pointer rounded-2xl border-2 p-6 transition-all duration-200
+                  ${
+                    isSelected
+                      ? "border-black bg-gray-50 ring-2 ring-black ring-offset-2 shadow-lg"
+                      : "border-gray-100 bg-white hover:border-gray-300 hover:shadow-md"
+                  }
+                `}
             >
-              <div className="flex items-start justify-between">
-                <Button
-                  onClick={() => setSelectedMethod(method.id)}
-                  variant="ghost"
-                  className="flex gap-4 flex-1 text-left h-auto p-0 hover:bg-transparent"
-                >
-                  <div
-                    className={`p-3 rounded-lg ${
-                      isSelected
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-gray-900">{method.name}</h3>
-                      {isSelected && (
-                        <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 text-gray-600 mb-2">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {method.duration}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />$
-                        {method.price.toFixed(2)}
-                      </span>
-                    </div>
+              {isSelected && (
+                <div className="absolute top-4 right-4 bg-black text-white rounded-full p-1">
+                  <Check className="w-4 h-4" />
+                </div>
+              )}
 
-                    <p className="text-gray-500">{method.description}</p>
-                  </div>
-                </Button>
-                {/* 查看地图, 未实现 */}
-                <Button variant="outline" size="sm" className="ml-4">
-                  View Map
-                </Button>
+              <div className="flex items-start justify-between mb-4">
+                <div
+                  className={`p-4 rounded-xl ${
+                    isSelected
+                      ? "bg-black text-white"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  <Icon className="w-8 h-8" />
+                </div>
+                <div className="text-right">
+                  <span className="block text-2xl font-bold text-gray-900">
+                    ${method.price.toFixed(2)}
+                  </span>
+                  <span className="text-sm text-gray-500 font-medium flex items-center justify-end gap-1">
+                    <Clock className="w-3 h-3" /> {method.duration}
+                  </span>
+                </div>
               </div>
+
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {method.name}
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                {method.description}
+              </p>
             </div>
           );
         })}
       </div>
 
-      {/* 确认/回退按钮 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex justify-between items-center mb-4">
-          <span className="text-gray-700">Selected delivery method:</span>
-          <span className="text-gray-900">
+      {/* 底部确认栏 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="text-center sm:text-left">
+          <p className="text-sm text-gray-500">Total Estimated Cost</p>
+          <p className="text-3xl font-bold text-gray-900">
+            $
             {selectedMethod
-              ? deliveryMethods.find((m) => m.id === selectedMethod)?.name
-              : "None selected"}
-          </span>
+              ? deliveryMethods
+                  .find((m) => m.id === selectedMethod)
+                  .price.toFixed(2)
+              : "0.00"}
+          </p>
         </div>
-        {selectedMethod && (
-          <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-            <span className="text-gray-900">Cost:</span>
-            <span className="text-gray-900">
-              $
-              {deliveryMethods
-                .find((m) => m.id === selectedMethod)
-                ?.price.toFixed(2)}
-            </span>
-          </div>
-        )}
-        <div className="flex justify-end gap-3">
-          <Button onClick={handleBack} variant="outline" className="px-6 py-2">
+
+        <div className="flex gap-3 w-full sm:w-auto">
+          <Button
+            onClick={handleBack}
+            variant="outline"
+            className="flex-1 sm:flex-none py-6"
+          >
             Back
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedMethod}
-            className="px-6 py-2"
+            disabled={!selectedMethod || isSubmitting}
+            className="flex-1 sm:flex-none py-6 px-8 bg-black hover:bg-gray-800 text-white shadow-md text-lg"
           >
-            Confirm Order
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing
+              </>
+            ) : (
+              "Confirm & Pay"
+            )}
           </Button>
         </div>
       </div>
