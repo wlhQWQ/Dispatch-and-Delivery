@@ -13,6 +13,7 @@ import { ShippingForm } from "./components/ShippingForm";
 import { DeliveryOptions } from "./components/DeliveryOptions";
 import AdminDashboard from "./components/AdminDashboard";
 import { Mailbox } from "./components/Mailbox";
+import { MailboxProvider } from "./contexts/MailboxContext";
 
 import { Toaster } from "./components/ui/sonner";
 import "./index.css";
@@ -67,8 +68,11 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")).render(
-  <>
-    <RouterProvider router={router} />
-    <Toaster />
-  </>
+    <>
+        <MailboxProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+        </MailboxProvider>
+    </>
 );
+
