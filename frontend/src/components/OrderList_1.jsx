@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ChevronUp,
@@ -10,14 +10,13 @@ import {
   Plus,
   XCircle,
   AlertCircle,
-  Loader2,
+  Search,
+  Filter,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
-// 引入 API
-import { getOrders } from "../api/orderApi";
 
-// --- 统计卡片组件 ---
+// --- 新增：统计卡片小组件 ---
 function StatsCard({ title, value, icon: Icon, color }) {
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all duration-200">
@@ -32,12 +31,71 @@ function StatsCard({ title, value, icon: Icon, color }) {
   );
 }
 
-// --- 单个订单卡片组件 ---
+// 模拟数据 (保持不变)
+const mockOrders = [
+  {
+    id: "1",
+    orderNumber: "ORD-2024-001",
+    date: "2024-12-15",
+    status: "complete",
+    price: 299.99,
+    itemDetail: {
+      weight: 1,
+      items: [
+        { product: "Wireless Headphones", quantity: 1 },
+        { product: "Phone Case", quantity: 2 },
+      ],
+    },
+    fromAddress: "321 Main St",
+    toAddress: "123 Main St",
+    deliveryMethod: "Robot",
+    deliveryStarts: new Date("2024-12-17T17:00:00"),
+    duration: 60,
+  },
+  {
+    id: "2",
+    orderNumber: "ORD-2024-001",
+    date: "2024-12-15",
+    status: "cancelled",
+    price: 299.99,
+    itemDetail: {
+      weight: 1,
+      items: [
+        { product: "Wireless Headphones", quantity: 1 },
+        { product: "Phone Case", quantity: 2 },
+      ],
+    },
+    fromAddress: "321 Main St",
+    toAddress: "123 Main St",
+    deliveryMethod: "Robot",
+    deliveryStarts: new Date("2024-12-17T17:00:00"),
+    duration: 60,
+  },
+  {
+    id: "3",
+    orderNumber: "ORD-2024-002",
+    date: "2024-12-14",
+    status: "in transit",
+    price: 549.5,
+    itemDetail: {
+      weight: 1,
+      items: [
+        { product: "Wireless Headphones", quantity: 3 },
+        { product: "Phone Case", quantity: 2 },
+      ],
+    },
+    fromAddress: "321 Main St",
+    toAddress: "123 Main St",
+    deliveryMethod: "Drone",
+    deliveryStarts: new Date(Date.now() - 2 * 60000),
+    duration: 60,
+  },
+];
+
 function OrderCard({ order }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
-  // 计算订单状态显示逻辑
   const getDeliveryStatus = () => {
     if (order.status === "cancelled") {
       return {
@@ -46,27 +104,32 @@ function OrderCard({ order }) {
         icon: XCircle,
       };
     }
-    // 简单的状态判断逻辑，根据实际后端返回的状态字段调整
-    if (order.status === "complete" || order.status === "delivered") {
+
+    const now = new Date();
+    const deliveryStartTime = new Date(order.deliveryStarts);
+    const deliveryEndTime = new Date(
+      deliveryStartTime.getTime() + order.duration * 60000
+    );
+
+    if (order.status === "complete")
       return {
         label: `Delivered`,
         color: "bg-green-100 text-green-800",
         icon: CheckCircle,
       };
-    }
-    if (order.status === "pending" || order.status === "dispatching") {
+    if (now < deliveryStartTime) {
       return {
-        label: `Dispatching`,
+        label: `Dispatching Soon`,
         color: "bg-yellow-100 text-yellow-800",
         icon: Clock,
       };
+    } else {
+      return {
+        label: "In Transit",
+        color: "bg-blue-100 text-blue-800",
+        icon: Package,
+      };
     }
-    // 默认状态为运输中
-    return {
-      label: "In Transit",
-      color: "bg-blue-100 text-blue-800",
-      icon: Package,
-    };
   };
 
   const statusInfo = getDeliveryStatus();
@@ -84,24 +147,18 @@ function OrderCard({ order }) {
             <StatusIcon className="w-5 h-5" />
           </div>
           <div className="text-left">
-            {/* 这里的字段名要确保和后端返回的 JSON key 一致 */}
-            <div className="text-gray-900 font-medium">
-              {order.id || order.orderNumber}
-            </div>
-            <div className="text-gray-500 text-xs">
-              {order.date || "Just now"}
-            </div>
+            <div className="text-gray-900 font-medium">{order.orderNumber}</div>
+            <div className="text-gray-500 text-xs">{order.date}</div>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
-            {/* 确保 price 是数字，如果后端返回字符串需要 parse */}
             <div className="text-gray-900 font-bold">
-              ${Number(order.price || 0).toFixed(2)}
+              ${order.price.toFixed(2)}
             </div>
             <div className="text-gray-500 text-xs">
-              {order.items ? order.items.length : 0} Items
+              {order.itemDetail.items.length} Items
             </div>
           </div>
           <div
@@ -125,18 +182,15 @@ function OrderCard({ order }) {
                 Order Items
               </h3>
               <div className="space-y-2">
-                {order.items &&
-                  order.items.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between text-gray-600 text-sm bg-white p-2 rounded border border-gray-100"
-                    >
-                      <span>{item.product}</span>
-                      <span className="font-medium">
-                        × {item.quantity || 1}
-                      </span>
-                    </div>
-                  ))}
+                {order.itemDetail.items.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-between text-gray-600 text-sm bg-white p-2 rounded border border-gray-100"
+                  >
+                    <span>{item.product}</span>
+                    <span className="font-medium">× {item.quantity}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -161,6 +215,9 @@ function OrderCard({ order }) {
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-200 flex gap-3 justify-end">
+            <Button variant="outline" size="sm">
+              View Details
+            </Button>
             {statusInfo.label === "In Transit" && (
               <Button
                 onClick={() => setIsTrackingOpen(true)}
@@ -175,15 +232,14 @@ function OrderCard({ order }) {
         </div>
       )}
 
-      {/* Tracking Modal */}
       <Dialog open={isTrackingOpen} onOpenChange={setIsTrackingOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>Track Order</DialogTitle>
+            <DialogTitle>Track Order - {order.orderNumber}</DialogTitle>
           </DialogHeader>
           <div className="py-6">
             <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500">Map View Placeholder</p>
+              <p className="text-gray-500">Tracking Map View</p>
             </div>
           </div>
         </DialogContent>
@@ -192,71 +248,16 @@ function OrderCard({ order }) {
   );
 }
 
-// --- 主组件 ---
 export function OrderList() {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // 1. 定义真实状态
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // 2. 拉取数据的函数
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const data = await getOrders();
-      setOrders(data); // 将后端数据存入 state
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load orders. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 3. 初始加载
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  // 4. 监听是否刚下完单回来 (Auto Refresh)
-  useEffect(() => {
-    if (location.state?.refresh) {
-      fetchOrders();
-      // 清理状态，避免刷新页面时重复触发
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
 
   const handleNewOrder = () => {
     navigate("/dashboard/new-order");
   };
 
-  // 5. 根据状态渲染 UI
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={fetchOrders} variant="outline">
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto pb-10">
+      {/* 1. 顶部标题栏 */}
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
@@ -275,45 +276,58 @@ export function OrderList() {
         </Button>
       </div>
 
-      {/* 统计数据 (这里目前还是静态数据，以后可以根据 orders 数组计算) */}
+      {/* 2. 统计数据卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
-          title="Total Orders"
-          value={orders.length}
+          title="Active Orders"
+          value="12"
           icon={Package}
           color="bg-blue-500 text-blue-600"
         />
         <StatsCard
           title="In Transit"
-          value={orders.filter((o) => o.status !== "complete").length}
+          value="3"
           icon={Truck}
           color="bg-yellow-500 text-yellow-600"
         />
         <StatsCard
           title="Completed"
-          value={orders.filter((o) => o.status === "complete").length}
+          value="1,248"
           icon={CheckCircle}
           color="bg-green-500 text-green-600"
         />
         <StatsCard
           title="Issues"
-          value="0"
+          value="1"
           icon={AlertCircle}
           color="bg-red-500 text-red-600"
         />
       </div>
 
+      {/* 3. 筛选栏 (Mock) */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <Button
+          variant="secondary"
+          className="bg-gray-900 text-white hover:bg-gray-800"
+        >
+          All Orders
+        </Button>
+        <Button variant="ghost" className="text-gray-600">
+          Active
+        </Button>
+        <Button variant="ghost" className="text-gray-600">
+          Completed
+        </Button>
+        <Button variant="ghost" className="text-gray-600">
+          Cancelled
+        </Button>
+      </div>
+
+      {/* 4. 订单列表 */}
       <div className="space-y-4">
-        {orders.length === 0 ? (
-          <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
-            No orders found. Create your first shipment!
-          </div>
-        ) : (
-          orders.map((order) => (
-            // 确保后端返回数据里有 id，否则用 index
-            <OrderCard key={order.id || Math.random()} order={order} />
-          ))
-        )}
+        {mockOrders.map((order) => (
+          <OrderCard key={order.id} order={order} />
+        ))}
       </div>
     </div>
   );

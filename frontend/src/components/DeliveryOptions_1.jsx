@@ -1,20 +1,29 @@
-import { ArrowLeft, Clock, Check, Bot, Plane, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Truck,
+  Plane,
+  Clock,
+  DollarSign,
+  Check,
+  Bot,
+  Map,
+  Loader2, // 引入 Loading 图标
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { StepIndicator } from "./StepIndicator";
-// 引入 API
-import { createOrder } from "../api/orderApi";
+
+// 引入你之前写的 API (如果没有 api 文件，这里会报错，可以先注释掉)
+// import { createOrder } from "../api/orderApi";
 
 export function DeliveryOptions() {
   const navigate = useNavigate();
   const location = useLocation();
-  const shippingData = location.state; // 从上一页传来的地址和物品信息
-
+  const shippingData = location.state;
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 如果没有上一页的数据（用户直接刷新或输入URL进入），跳回第一步
   useEffect(() => {
     if (!shippingData) {
       navigate("/dashboard/new-order");
@@ -23,21 +32,23 @@ export function DeliveryOptions() {
 
   const deliveryMethods = [
     {
-      id: "robot", // 注意：这个ID要对应后端支持的枚举值，比如 "ROBOT"
+      id: "standard",
       name: "Robot Delivery",
       icon: Bot,
       duration: "30-50 min",
       price: 15.0,
       description:
         "Eco-friendly autonomous robot. Best for local ground delivery.",
+      color: "blue",
     },
     {
-      id: "drone", // 注意：同上，比如 "DRONE"
+      id: "express",
       name: "Drone Delivery",
       icon: Plane,
       duration: "5-10 min",
       price: 28.5,
       description: "High-speed aerial drone. Best for urgent small packages.",
+      color: "purple",
     },
   ];
 
@@ -45,43 +56,26 @@ export function DeliveryOptions() {
     if (!selectedMethod) return;
 
     setIsSubmitting(true);
+    const method = deliveryMethods.find((m) => m.id === selectedMethod);
+    const orderData = {
+      ...shippingData,
+      deliveryMethod: method.id,
+      price: method.price,
+      // estimatedTime: ...
+    };
 
-    try {
-      const method = deliveryMethods.find((m) => m.id === selectedMethod);
+    console.log("Submitting Order:", orderData);
 
-      // 1. 组装发给后端的数据包 (Payload)
-      // 关键：这里的 key (items, fromAddress...) 必须和后端 DTO 定义的一致
-      const finalOrderData = {
-        items: shippingData.items,
-        fromAddress: shippingData.fromAddress,
-        toAddress: shippingData.toAddress,
-
-        deliveryMethod: method.id,
-        price: method.price,
-        estimatedDuration: method.duration,
-
-        // 补充字段 (根据后端需求可选)
-        createTime: new Date().toISOString(),
-      };
-
-      console.log("Submitting Order Payload:", finalOrderData);
-
-      // 2. 调用 API
-      await createOrder(finalOrderData);
-
-      // 3. 成功后跳转回列表，并触发刷新
-      // alert("Order Successfully Created!"); // 可选：显示成功弹窗
-      navigate("/dashboard/orders", { state: { refresh: true } });
-    } catch (error) {
-      console.error("Submission failed", error);
-      alert("Failed to submit order. Please check console for details.");
-    } finally {
+    // 模拟 API 调用延迟
+    setTimeout(() => {
       setIsSubmitting(false);
-    }
+      // 这里应该调用 API: await createOrder(orderData);
+      alert("Order Successfully Created!");
+      navigate("/dashboard/orders");
+    }, 1500);
   };
 
   const handleBack = () => {
-    // 把数据传回去，防止用户填的东西丢了
     navigate("/dashboard/new-order", { state: shippingData });
   };
 
