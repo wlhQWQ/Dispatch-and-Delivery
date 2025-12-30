@@ -1,88 +1,86 @@
-import { ArrowLeft, Clock, Check, Bot, Plane, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Bot, Plane, Check, Loader2, ArrowLeft, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { StepIndicator } from "./StepIndicator";
-// 引入 API
 import { createOrder } from "../api/orderApi";
 
 export function DeliveryOptions() {
   const navigate = useNavigate();
   const location = useLocation();
-  const shippingData = location.state; // 从上一页传来的地址和物品信息
+  const shippingData = location.state;
 
   const [selectedMethod, setSelectedMethod] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // 如果没有上一页的数据（用户直接刷新或输入URL进入），跳回第一步
   useEffect(() => {
-    if (!shippingData) {
-      navigate("/dashboard/new-order");
-    }
+    if (!shippingData) navigate("/dashboard/new-order");
   }, [shippingData, navigate]);
 
   const deliveryMethods = [
     {
-      id: "robot", // 注意：这个ID要对应后端支持的枚举值，比如 "ROBOT"
-      name: "Robot Delivery",
-      icon: Bot,
-      duration: "30-50 min",
+      id: "robot",
+      name: "Autonomous Robot",
       price: 15.0,
-      description:
-        "Eco-friendly autonomous robot. Best for local ground delivery.",
+      duration: 45, // int
+      icon: Bot,
+      desc: "Best for ground delivery.",
     },
     {
-      id: "drone", // 注意：同上，比如 "DRONE"
-      name: "Drone Delivery",
+      id: "drone",
+      name: "Flying Drone",
+      price: 25.0,
+      duration: 15, // int
       icon: Plane,
-      duration: "5-10 min",
-      price: 28.5,
-      description: "High-speed aerial drone. Best for urgent small packages.",
+      desc: "Fastest aerial delivery.",
     },
   ];
 
   const handleConfirm = async () => {
     if (!selectedMethod) return;
-
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
       const method = deliveryMethods.find((m) => m.id === selectedMethod);
+      const rawItems = shippingData.rawItems || [];
 
-      // 1. 组装发给后端的数据包 (Payload)
-      // 关键：这里的 key (items, fromAddress...) 必须和后端 DTO 定义的一致
-      const finalOrderData = {
-        items: shippingData.items,
-        fromAddress: shippingData.fromAddress,
-        toAddress: shippingData.toAddress,
+      // 1. 数据转换：Array -> String Description
+      const descriptionString = rawItems
+        .map((item) => `${item.name}`)
+        .join(", ");
 
-        deliveryMethod: method.id,
-        price: method.price,
-        estimatedDuration: method.duration,
+      // 2. 数据转换：Total Weight
+      const totalWeight = rawItems.reduce(
+        (sum, item) => sum + (parseFloat(item.weight) || 0),
+        0
+      );
 
-        // 补充字段 (根据后端需求可选)
-        createTime: new Date().toISOString(),
+      // 3. 组装 API Payload (严格遵守 Snake Case)
+      const payload = {
+        from_address: shippingData.from_address,
+        to_address: shippingData.to_address,
+        duration: method.duration, // int
+        price: method.price, // float
+        item_description: descriptionString, // string
+        weight: totalWeight, // float
       };
 
-      console.log("Submitting Order Payload:", finalOrderData);
+      console.log("Submitting Payload:", payload);
 
-      // 2. 调用 API
-      await createOrder(finalOrderData);
+      // 4. 发送
+      const result = await createOrder(payload);
 
-      // 3. 成功后跳转回列表，并触发刷新
-      // alert("Order Successfully Created!"); // 可选：显示成功弹窗
-      navigate("/dashboard/orders", { state: { refresh: true } });
-    } catch (error) {
-      console.error("Submission failed", error);
-      alert("Failed to submit order. Please check console for details.");
+      if (result.success) {
+        navigate("/dashboard/orders", { state: { refresh: true } });
+      } else {
+        alert("Server returned failure.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit order.");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  };
-
-  const handleBack = () => {
-    // 把数据传回去，防止用户填的东西丢了
-    navigate("/dashboard/new-order", { state: shippingData });
   };
 
   if (!shippingData) return null;
@@ -91,78 +89,63 @@ export function DeliveryOptions() {
     <div className="max-w-4xl mx-auto pb-10">
       <StepIndicator currentStep={2} />
 
-      <div className="mb-8 flex items-center gap-4">
-        <Button
-          onClick={handleBack}
-          variant="ghost"
-          size="icon"
-          className="hover:bg-gray-100 rounded-full"
-        >
-          <ArrowLeft className="w-6 h-6 text-gray-700" />
+      <div className="flex items-center gap-4 mb-6 mt-4">
+        <Button onClick={() => navigate(-1)} variant="ghost" size="icon">
+          <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="text-2xl font-bold">Choose Delivery Method</h1>
+        <h1 className="text-2xl font-bold">Select Delivery Method</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {deliveryMethods.map((method) => {
-          const Icon = method.icon;
           const isSelected = selectedMethod === method.id;
-
+          const Icon = method.icon;
           return (
             <div
               key={method.id}
               onClick={() => setSelectedMethod(method.id)}
-              className={`
-                  relative cursor-pointer rounded-2xl border-2 p-6 transition-all duration-200
-                  ${
-                    isSelected
-                      ? "border-black bg-gray-50 ring-2 ring-black ring-offset-2 shadow-lg"
-                      : "border-gray-100 bg-white hover:border-gray-300 hover:shadow-md"
-                  }
-                `}
+              className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all ${
+                isSelected
+                  ? "border-black bg-gray-50 ring-1 ring-black"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
             >
               {isSelected && (
                 <div className="absolute top-4 right-4 bg-black text-white rounded-full p-1">
-                  <Check className="w-4 h-4" />
+                  <Check size={14} />
                 </div>
               )}
 
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex justify-between items-start mb-4">
                 <div
-                  className={`p-4 rounded-xl ${
+                  className={`p-3 rounded-lg ${
                     isSelected
                       ? "bg-black text-white"
                       : "bg-gray-100 text-gray-600"
                   }`}
                 >
-                  <Icon className="w-8 h-8" />
+                  <Icon size={24} />
                 </div>
                 <div className="text-right">
-                  <span className="block text-2xl font-bold text-gray-900">
+                  <div className="text-xl font-bold">
                     ${method.price.toFixed(2)}
-                  </span>
-                  <span className="text-sm text-gray-500 font-medium flex items-center justify-end gap-1">
-                    <Clock className="w-3 h-3" /> {method.duration}
-                  </span>
+                  </div>
+                  <div className="text-xs text-green-600 font-bold flex items-center justify-end gap-1">
+                    <Clock size={12} /> {method.duration} min
+                  </div>
                 </div>
               </div>
-
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {method.name}
-              </h3>
-              <p className="text-sm text-gray-500 leading-relaxed">
-                {method.description}
-              </p>
+              <h3 className="font-bold text-lg">{method.name}</h3>
+              <p className="text-sm text-gray-500">{method.desc}</p>
             </div>
           );
         })}
       </div>
 
-      {/* 底部确认栏 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="text-center sm:text-left">
-          <p className="text-sm text-gray-500">Total Estimated Cost</p>
-          <p className="text-3xl font-bold text-gray-900">
+      <div className="bg-white p-6 rounded-xl border border-gray-200 flex justify-between items-center shadow-sm">
+        <div>
+          <p className="text-sm text-gray-500">Estimated Total</p>
+          <p className="text-3xl font-bold">
             $
             {selectedMethod
               ? deliveryMethods
@@ -171,29 +154,19 @@ export function DeliveryOptions() {
               : "0.00"}
           </p>
         </div>
-
-        <div className="flex gap-3 w-full sm:w-auto">
-          <Button
-            onClick={handleBack}
-            variant="outline"
-            className="flex-1 sm:flex-none py-6"
-          >
-            Back
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!selectedMethod || isSubmitting}
-            className="flex-1 sm:flex-none py-6 px-8 bg-black hover:bg-gray-800 text-white shadow-md text-lg"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing
-              </>
-            ) : (
-              "Confirm & Pay"
-            )}
-          </Button>
-        </div>
+        <Button
+          onClick={handleConfirm}
+          disabled={!selectedMethod || loading}
+          className="bg-black text-white hover:bg-gray-800 py-6 px-10 text-lg shadow-md"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 animate-spin" /> Processing
+            </>
+          ) : (
+            "Confirm & Pay"
+          )}
+        </Button>
       </div>
     </div>
   );

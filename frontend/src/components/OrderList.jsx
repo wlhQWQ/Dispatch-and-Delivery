@@ -8,19 +8,19 @@ import {
   CheckCircle,
   Truck,
   Plus,
-  XCircle,
   AlertCircle,
   Loader2,
+  MapPin,
+  Calendar,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
-// 引入 API
 import { getOrders } from "../api/orderApi";
 
-// --- 统计卡片组件 ---
+// --- Stats Card ---
 function StatsCard({ title, value, icon: Icon, color }) {
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all duration-200">
+    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
       <div className={`p-4 rounded-full ${color} bg-opacity-10`}>
         <Icon className={`w-6 h-6 ${color.replace("bg-", "text-")}`} />
       </div>
@@ -32,143 +32,138 @@ function StatsCard({ title, value, icon: Icon, color }) {
   );
 }
 
-// --- 单个订单卡片组件 ---
+// --- Order Card (Adapted to new API) ---
 function OrderCard({ order }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
-  // 计算订单状态显示逻辑
-  const getDeliveryStatus = () => {
-    if (order.status === "cancelled") {
-      return {
-        label: `Cancelled`,
-        color: "bg-red-100 text-red-800",
-        icon: XCircle,
-      };
+  // Status mapping
+  const getStatusConfig = (status) => {
+    switch (status?.toLowerCase()) {
+      case "delivered":
+      case "completed":
+        return {
+          label: "Delivered",
+          color: "bg-green-100 text-green-800",
+          icon: CheckCircle,
+        };
+      case "pending":
+        return {
+          label: "Pending",
+          color: "bg-yellow-100 text-yellow-800",
+          icon: Clock,
+        };
+      case "in_transit":
+      default:
+        return {
+          label: "In Transit",
+          color: "bg-blue-100 text-blue-800",
+          icon: Truck,
+        };
     }
-    // 简单的状态判断逻辑，根据实际后端返回的状态字段调整
-    if (order.status === "complete" || order.status === "delivered") {
-      return {
-        label: `Delivered`,
-        color: "bg-green-100 text-green-800",
-        icon: CheckCircle,
-      };
-    }
-    if (order.status === "pending" || order.status === "dispatching") {
-      return {
-        label: `Dispatching`,
-        color: "bg-yellow-100 text-yellow-800",
-        icon: Clock,
-      };
-    }
-    // 默认状态为运输中
-    return {
-      label: "In Transit",
-      color: "bg-blue-100 text-blue-800",
-      icon: Package,
-    };
   };
 
-  const statusInfo = getDeliveryStatus();
+  const statusInfo = getStatusConfig(order.status);
   const StatusIcon = statusInfo.icon;
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-blue-300 transition-colors shadow-sm">
-      <Button
+      <div
         onClick={() => setIsExpanded(!isExpanded)}
-        variant="ghost"
-        className="w-full p-4 flex items-center justify-between h-auto hover:bg-gray-50"
+        className="w-full p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-4"
       >
+        {/* Left: Icon & ID */}
         <div className="flex items-center gap-4">
-          <div className={`p-2 rounded-lg ${statusInfo.color}`}>
-            <StatusIcon className="w-5 h-5" />
+          <div className={`p-3 rounded-xl ${statusInfo.color}`}>
+            <StatusIcon className="w-6 h-6" />
           </div>
-          <div className="text-left">
-            {/* 这里的字段名要确保和后端返回的 JSON key 一致 */}
-            <div className="text-gray-900 font-medium">
-              {order.id || order.orderNumber}
+          <div>
+            <div className="text-gray-900 font-bold text-lg">
+              {order.order_id}
             </div>
-            <div className="text-gray-500 text-xs">
-              {order.date || "Just now"}
+            <div className="text-gray-500 text-xs flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {new Date(order.pickup_time).toLocaleDateString()}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="text-right hidden sm:block">
-            {/* 确保 price 是数字，如果后端返回字符串需要 parse */}
+        {/* Right: Info & Status */}
+        <div className="flex flex-1 justify-between sm:justify-end items-center gap-6 w-full sm:w-auto">
+          <div className="text-left sm:text-right">
             <div className="text-gray-900 font-bold">
-              ${Number(order.price || 0).toFixed(2)}
+              ${Number(order.price).toFixed(2)}
             </div>
             <div className="text-gray-500 text-xs">
-              {order.items ? order.items.length : 0} Items
+              {order.robot_type} • {order.weight}kg
             </div>
           </div>
+
           <div
-            className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}
+            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${statusInfo.color}`}
           >
             {statusInfo.label}
           </div>
+
           {isExpanded ? (
             <ChevronUp className="w-5 h-5 text-gray-400" />
           ) : (
             <ChevronDown className="w-5 h-5 text-gray-400" />
           )}
         </div>
-      </Button>
+      </div>
 
+      {/* Expanded Details */}
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-gray-200 bg-gray-50/50">
-          <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="px-5 pb-5 border-t border-gray-100 bg-gray-50/50">
+          <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Description */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wider">
-                Order Items
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Package Contents
               </h3>
-              <div className="space-y-2">
-                {order.items &&
-                  order.items.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between text-gray-600 text-sm bg-white p-2 rounded border border-gray-100"
-                    >
-                      <span>{item.product}</span>
-                      <span className="font-medium">
-                        × {item.quantity || 1}
-                      </span>
-                    </div>
-                  ))}
+              <div className="bg-white p-3 rounded border border-gray-200 text-gray-700 text-sm leading-relaxed">
+                {order.item_description}
               </div>
             </div>
 
-            <div className="space-y-3 text-sm">
-              <div className="flex gap-2">
-                <div className="w-1 bg-blue-500 rounded-full"></div>
+            {/* Address & Route Info */}
+            <div className="space-y-4">
+              <div className="flex gap-3 items-start">
+                <div className="mt-1 w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                 <div>
-                  <h4 className="text-gray-500 text-xs">From</h4>
-                  <p className="text-gray-900 font-medium">
-                    {order.fromAddress}
+                  <h4 className="text-xs text-gray-400 uppercase">From</h4>
+                  <p className="text-sm font-medium text-gray-900">
+                    {order.from_address}
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <div className="w-1 bg-green-500 rounded-full"></div>
+              <div className="flex gap-3 items-start">
+                <div className="mt-1 w-2 h-2 rounded-full bg-green-500 shrink-0" />
                 <div>
-                  <h4 className="text-gray-500 text-xs">To</h4>
-                  <p className="text-gray-900 font-medium">{order.toAddress}</p>
+                  <h4 className="text-xs text-gray-400 uppercase">To</h4>
+                  <p className="text-sm font-medium text-gray-900">
+                    {order.to_address}
+                  </p>
                 </div>
+              </div>
+              <div className="text-xs text-gray-500 pl-5">
+                Est. Duration:{" "}
+                <span className="font-medium text-gray-900">
+                  {order.duration} mins
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-200 flex gap-3 justify-end">
-            {statusInfo.label === "In Transit" && (
+          <div className="mt-6 flex justify-end">
+            {/* Only show track button if not delivered */}
+            {order.status !== "delivered" && (
               <Button
                 onClick={() => setIsTrackingOpen(true)}
-                size="sm"
-                className="bg-black hover:bg-gray-800 text-white flex items-center gap-2"
+                className="bg-black text-white hover:bg-gray-800"
               >
-                <Truck size={14} />
-                Track Order
+                <Truck className="w-4 h-4 mr-2" /> Track Shipment
               </Button>
             )}
           </div>
@@ -177,14 +172,13 @@ function OrderCard({ order }) {
 
       {/* Tracking Modal */}
       <Dialog open={isTrackingOpen} onOpenChange={setIsTrackingOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Track Order</DialogTitle>
+            <DialogTitle>Tracking Order: {order.order_id}</DialogTitle>
           </DialogHeader>
-          <div className="py-6">
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500">Map View Placeholder</p>
-            </div>
+          <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+            <p className="text-gray-500">Map Visualization Component Here</p>
+            {/* Note: Pass 'order.route' to your map component here */}
           </div>
         </DialogContent>
       </Dialog>
@@ -192,126 +186,95 @@ function OrderCard({ order }) {
   );
 }
 
-// --- 主组件 ---
 export function OrderList() {
   const navigate = useNavigate();
   const location = useLocation();
-
-  // 1. 定义真实状态
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 2. 拉取数据的函数
   const fetchOrders = async () => {
     try {
       setLoading(true);
       const data = await getOrders();
-      setOrders(data); // 将后端数据存入 state
+      setOrders(data || []);
       setError(null);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load orders. Please try again.");
+      setError("Failed to load orders.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. 初始加载
   useEffect(() => {
     fetchOrders();
   }, []);
-
-  // 4. 监听是否刚下完单回来 (Auto Refresh)
   useEffect(() => {
     if (location.state?.refresh) {
       fetchOrders();
-      // 清理状态，避免刷新页面时重复触发
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  const handleNewOrder = () => {
-    navigate("/dashboard/new-order");
-  };
-
-  // 5. 根据状态渲染 UI
-  if (loading) {
+  if (loading)
     return (
-      <div className="flex justify-center items-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="h-64 flex justify-center items-center">
+        <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
       </div>
     );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={fetchOrders} variant="outline">
-          Retry
-        </Button>
-      </div>
-    );
-  }
+  if (error)
+    return <div className="text-center py-10 text-red-500">{error}</div>;
 
   return (
-    <div className="max-w-7xl mx-auto pb-10">
-      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="max-w-6xl mx-auto pb-10">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Manage your shipments and track deliveries.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500">Overview of your delivery status</p>
         </div>
         <Button
-          onClick={handleNewOrder}
-          className="px-6 py-2 flex items-center gap-2 bg-black hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all"
+          onClick={() => navigate("/dashboard/new-order")}
+          className="bg-black hover:bg-gray-800 text-white shadow-lg"
         >
-          <Plus className="w-5 h-5" />
-          Create Shipment
+          <Plus className="w-5 h-5 mr-2" /> New Order
         </Button>
       </div>
 
-      {/* 统计数据 (这里目前还是静态数据，以后可以根据 orders 数组计算) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Total Orders"
           value={orders.length}
           icon={Package}
-          color="bg-blue-500 text-blue-600"
+          color="bg-blue-500"
         />
         <StatsCard
           title="In Transit"
-          value={orders.filter((o) => o.status !== "complete").length}
+          value={orders.filter((o) => o.status === "in_transit").length}
           icon={Truck}
-          color="bg-yellow-500 text-yellow-600"
+          color="bg-yellow-500"
         />
         <StatsCard
           title="Completed"
-          value={orders.filter((o) => o.status === "complete").length}
+          value={orders.filter((o) => o.status === "delivered").length}
           icon={CheckCircle}
-          color="bg-green-500 text-green-600"
+          color="bg-green-500"
         />
         <StatsCard
-          title="Issues"
+          title="Alerts"
           value="0"
           icon={AlertCircle}
-          color="bg-red-500 text-red-600"
+          color="bg-red-500"
         />
       </div>
 
       <div className="space-y-4">
         {orders.length === 0 ? (
-          <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
-            No orders found. Create your first shipment!
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <p className="text-gray-500">No active orders found.</p>
           </div>
         ) : (
           orders.map((order) => (
-            // 确保后端返回数据里有 id，否则用 index
-            <OrderCard key={order.id || Math.random()} order={order} />
+            <OrderCard key={order.order_id || Math.random()} order={order} />
           ))
         )}
       </div>
