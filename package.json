@@ -1,0 +1,39 @@
+{
+  "name": "dispatch-and-delivery-root",
+  "version": "1.0.0",
+  "description": "Dispatch and Delivery Application - Full Stack",
+  "private": true,
+  "scripts": {
+    "predev": "npm run setup:check && npm run setup:docker",
+    "dev": "npm run dev:all",
+    "dev:all": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend/Dispatch-and-Delivery && gradlew.bat bootRun",
+    "dev:frontend": "cd frontend && npm run dev",
+    "setup": "npm run setup:install && npm run setup:docker",
+    "setup:check": "node -e \"console.log('\\x1b[36m%s\\x1b[0m', '🚀 Starting Dispatch & Delivery Application...'); console.log('\\x1b[33m%s\\x1b[0m', 'This will:'); console.log('  ✅ Check & start PostgreSQL & Redis'); console.log('  ✅ Start Spring Boot backend (port 8080)'); console.log('  ✅ Start React frontend (port 5173)'); console.log('  ✅ Initialize 12 sample orders & routes'); console.log('');\"",
+    "setup:docker": "powershell -File scripts/setup-docker.ps1",
+    "setup:install": "cd frontend && npm install",
+    "docker:start": "powershell -File scripts/setup-docker.ps1",
+    "docker:postgres": "docker run --name postgres-dispatch -e POSTGRES_DB=dispatch_delivery -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres:latest",
+    "docker:redis": "docker run --name redis-dispatch -p 6379:6379 -d redis:latest",
+    "docker:stop": "docker stop postgres-dispatch redis-dispatch",
+    "docker:remove": "docker rm postgres-dispatch redis-dispatch",
+    "docker:restart": "npm run docker:stop && npm run docker:remove && npm run docker:start",
+    "docker:status": "docker ps --filter name=dispatch",
+    "docker:logs": "concurrently -n \"POSTGRES,REDIS\" -c \"blue,red\" \"npm run logs:postgres\" \"npm run logs:redis\"",
+    "verify": "npm run verify:postgres && npm run verify:redis",
+    "verify:postgres": "docker exec postgres-dispatch psql -U user -d dispatch_delivery -c \"SELECT id, status, from_address FROM orders LIMIT 5;\"",
+    "verify:redis": "docker exec redis-dispatch redis-cli KEYS routes:*",
+    "verify:all": "powershell -File scripts/verify-setup.ps1",
+    "logs:postgres": "docker logs --tail 50 postgres-dispatch",
+    "logs:redis": "docker logs --tail 50 redis-dispatch",
+    "logs:backend": "echo 'Check the terminal window running the backend'",
+    "clean": "npm run docker:stop && npm run docker:remove",
+    "reset": "npm run clean && npm run dev",
+    "info": "node -e \"console.log('\\x1b[36m%s\\x1b[0m', '📦 Dispatch & Delivery - Available Commands:'); console.log(''); console.log('\\x1b[33m%s\\x1b[0m', '🚀 Development:'); console.log('  npm run dev          - Start everything (Docker + Backend + Frontend)'); console.log('  npm run dev:backend  - Start backend only'); console.log('  npm run dev:frontend - Start frontend only'); console.log(''); console.log('\\x1b[33m%s\\x1b[0m', '🐳 Docker Management:'); console.log('  npm run docker:start   - Start Docker containers'); console.log('  npm run docker:stop    - Stop containers'); console.log('  npm run docker:restart - Restart containers'); console.log('  npm run docker:status  - Check status'); console.log('  npm run docker:logs    - View all logs'); console.log(''); console.log('\\x1b[33m%s\\x1b[0m', '✅ Verification:'); console.log('  npm run verify         - Verify data in both databases'); console.log('  npm run verify:postgres - Check PostgreSQL data'); console.log('  npm run verify:redis   - Check Redis data'); console.log(''); console.log('\\x1b[33m%s\\x1b[0m', '🧹 Cleanup:'); console.log('  npm run clean  - Stop and remove containers'); console.log('  npm run reset  - Clean and restart everything'); console.log('');\"",
+    "postinstall": "cd frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
