@@ -10,160 +10,245 @@ import {
   Plus,
   AlertCircle,
   Loader2,
-  MapPin,
   Calendar,
+  FileText,
+  Map,
+  XCircle,
+  ArrowRight,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { getOrders } from "../api/orderApi";
 
-// --- Stats Card ---
-function StatsCard({ title, value, icon: Icon, color }) {
+// --- Stats Card Component (UI Polish) ---
+function StatsCard({ title, value, icon: Icon, colorClass, bgClass }) {
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-      <div className={`p-4 rounded-full ${color} bg-opacity-10`}>
-        <Icon className={`w-6 h-6 ${color.replace("bg-", "text-")}`} />
+    <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow duration-200">
+      {/* 修复图标显示：使用固定宽高的容器 + Flex 居中，防止图标被切 */}
+      <div
+        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgClass}`}
+      >
+        <Icon className={`w-6 h-6 ${colorClass}`} />
       </div>
       <div>
-        <p className="text-sm text-gray-500 font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          {title}
+        </p>
+        <h3 className="text-3xl font-bold text-gray-900 tracking-tight">
+          {value}
+        </h3>
       </div>
     </div>
   );
 }
 
-// --- Order Card (Adapted to new API) ---
+// --- Order Card Component (Logic & UI Overhaul) ---
 function OrderCard({ order }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
-  // Status mapping
-  const getStatusConfig = (status) => {
-    switch (status?.toLowerCase()) {
-      case "delivered":
-      case "completed":
-        return {
-          label: "Delivered",
-          color: "bg-green-100 text-green-800",
-          icon: CheckCircle,
-        };
-      case "pending":
-        return {
-          label: "Pending",
-          color: "bg-yellow-100 text-yellow-800",
-          icon: Clock,
-        };
-      case "in_transit":
-      default:
-        return {
-          label: "In Transit",
-          color: "bg-blue-100 text-blue-800",
-          icon: Truck,
-        };
+  // 1. 核心状态逻辑优化
+  const getDeliveryStatus = () => {
+    // A. Cancelled
+    if (order.status === "cancelled") {
+      return {
+        label: "Cancelled",
+        color: "bg-red-50 text-red-700 border-red-100",
+        icon: XCircle,
+        canTrack: false,
+      };
     }
+
+    // B. Delivered
+    if (order.status === "delivered" || order.status === "completed") {
+      return {
+        label: "Delivered",
+        color: "bg-gray-100 text-gray-700 border-gray-200",
+        icon: CheckCircle,
+        canTrack: false,
+      };
+    }
+
+    // 时间计算
+    const now = new Date();
+    const startTime = new Date(order.start_time);
+
+    // C. Dispatch at [Time] (Scheduled future)
+    if (startTime > now) {
+      const timeStr = startTime.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return {
+        label: `Dispatch at ${timeStr}`,
+        color: "bg-yellow-50 text-yellow-700 border-yellow-100",
+        icon: Clock,
+        canTrack: false,
+      };
+    }
+
+    // D. In Transit (Default active state)
+    return {
+      label: "In Transit",
+      color: "bg-blue-50 text-blue-700 border-blue-100",
+      icon: Truck,
+      canTrack: true,
+    };
   };
 
-  const statusInfo = getStatusConfig(order.status);
+  const statusInfo = getDeliveryStatus();
   const StatusIcon = statusInfo.icon;
 
+  // 计算送达时间 (用于 Delivered 状态)
+  const getActualDeliveryTime = () => {
+    if (!order.start_time) return "N/A";
+    const start = new Date(order.start_time);
+    const end = new Date(start.getTime() + (order.duration || 0) * 60000);
+    return end.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-blue-300 transition-colors shadow-sm">
+    <div
+      className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
+        isExpanded
+          ? "border-black shadow-md"
+          : "border-gray-200 hover:border-gray-300 shadow-sm"
+      }`}
+    >
+      {/* --- Main Row Summary --- */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-4"
+        className="w-full p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer gap-4 group"
       >
-        {/* Left: Icon & ID */}
         <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-xl ${statusInfo.color}`}>
-            <StatusIcon className="w-6 h-6" />
+          {/* Status Icon Box */}
+          <div
+            className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${statusInfo.color}`}
+          >
+            <StatusIcon className="w-5 h-5" />
           </div>
+
           <div>
-            <div className="text-gray-900 font-bold text-lg">
-              {order.order_id}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-gray-900 font-bold text-lg tracking-tight">
+                {order.order_id}
+              </span>
+              {/* Status Pill */}
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusInfo.color}`}
+              >
+                {statusInfo.label}
+              </span>
             </div>
-            <div className="text-gray-500 text-xs flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {new Date(order.pickup_time).toLocaleDateString()}
+            <div className="text-gray-500 text-sm flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5" />
+              {order.start_time
+                ? new Date(order.start_time).toLocaleDateString()
+                : "Date N/A"}
             </div>
           </div>
         </div>
 
-        {/* Right: Info & Status */}
-        <div className="flex flex-1 justify-between sm:justify-end items-center gap-6 w-full sm:w-auto">
+        <div className="flex flex-1 justify-between sm:justify-end items-center gap-8 w-full sm:w-auto pl-16 sm:pl-0">
           <div className="text-left sm:text-right">
-            <div className="text-gray-900 font-bold">
+            <div className="text-gray-900 font-bold text-lg">
               ${Number(order.price).toFixed(2)}
             </div>
-            <div className="text-gray-500 text-xs">
-              {order.robot_type} • {order.weight}kg
+            <div className="text-gray-500 text-xs font-medium">
+              {order.duration} min • {order.weight} kg
             </div>
           </div>
 
           <div
-            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${statusInfo.color}`}
+            className={`transition-transform duration-200 ${
+              isExpanded ? "rotate-180" : ""
+            }`}
           >
-            {statusInfo.label}
+            <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-black" />
           </div>
-
-          {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
         </div>
       </div>
 
-      {/* Expanded Details */}
+      {/* --- Expanded Details Section --- */}
       {isExpanded && (
-        <div className="px-5 pb-5 border-t border-gray-100 bg-gray-50/50">
-          <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Description */}
-            <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                Package Contents
-              </h3>
-              <div className="bg-white p-3 rounded border border-gray-200 text-gray-700 text-sm leading-relaxed">
-                {order.item_description}
+        <div className="px-6 pb-6 pt-2 border-t border-gray-100 bg-gray-50/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+            {/* Left: Package Info */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Package Details
+                </h3>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 text-gray-700 text-sm leading-relaxed shadow-sm">
+                  {order.item_description}
+                </div>
               </div>
+
+              {/* 3. 新增：Delivered 状态显示实际送达时间 */}
+              {statusInfo.label === "Delivered" && (
+                <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-lg border border-green-100">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    Actual Delivery: {getActualDeliveryTime()}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Address & Route Info */}
-            <div className="space-y-4">
-              <div className="flex gap-3 items-start">
-                <div className="mt-1 w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                <div>
-                  <h4 className="text-xs text-gray-400 uppercase">From</h4>
+            {/* Right: Route Info */}
+            <div className="space-y-6">
+              <div className="relative pl-4 border-l-2 border-gray-200 space-y-6">
+                <div className="relative">
+                  <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-black border-2 border-white ring-1 ring-gray-200" />
+                  <h4 className="text-xs text-gray-400 uppercase font-semibold mb-1">
+                    From
+                  </h4>
                   <p className="text-sm font-medium text-gray-900">
                     {order.from_address}
                   </p>
                 </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <div className="mt-1 w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                <div>
-                  <h4 className="text-xs text-gray-400 uppercase">To</h4>
+                <div className="relative">
+                  <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-gray-400 border-2 border-white ring-1 ring-gray-200" />
+                  <h4 className="text-xs text-gray-400 uppercase font-semibold mb-1">
+                    To
+                  </h4>
                   <p className="text-sm font-medium text-gray-900">
                     {order.to_address}
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 pl-5">
-                Est. Duration:{" "}
-                <span className="font-medium text-gray-900">
-                  {order.duration} mins
-                </span>
-              </div>
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end">
-            {/* Only show track button if not delivered */}
-            {order.status !== "delivered" && (
+          {/* 3. 新增：底部功能按钮栏 (Details, Receipt, Track) */}
+          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-3 justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-gray-600 border-gray-300 hover:bg-white hover:text-black"
+            >
+              <FileText className="w-4 h-4 mr-2" /> Receipt
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-gray-600 border-gray-300 hover:bg-white hover:text-black"
+            >
+              View Details
+            </Button>
+
+            {statusInfo.canTrack && (
               <Button
                 onClick={() => setIsTrackingOpen(true)}
-                className="bg-black text-white hover:bg-gray-800"
+                size="sm"
+                className="bg-black text-white hover:bg-gray-800 shadow-md"
               >
-                <Truck className="w-4 h-4 mr-2" /> Track Shipment
+                <Map className="w-4 h-4 mr-2" /> Track Order
               </Button>
             )}
           </div>
@@ -172,13 +257,20 @@ function OrderCard({ order }) {
 
       {/* Tracking Modal */}
       <Dialog open={isTrackingOpen} onOpenChange={setIsTrackingOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Tracking Order: {order.order_id}</DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[85vh] p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <span>Tracking Order</span>
+              <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-sm font-mono">
+                {order.order_id}
+              </span>
+            </DialogTitle>
           </DialogHeader>
-          <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-            <p className="text-gray-500">Map Visualization Component Here</p>
-            {/* Note: Pass 'order.route' to your map component here */}
+          <div className="p-6 pt-2">
+            <div className="bg-gray-100 h-96 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 gap-2">
+              <Map className="w-10 h-10 opacity-20" />
+              <p className="font-medium">Map Visualization Loading...</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -216,61 +308,94 @@ export function OrderList() {
     }
   }, [location.state]);
 
+  // 状态计算 (for Stats Cards)
+  const stats = {
+    total: orders.length,
+    active: orders.filter(
+      (o) =>
+        o.status === "in_transit" ||
+        (o.status !== "cancelled" && o.status !== "delivered")
+    ).length,
+    completed: orders.filter(
+      (o) => o.status === "delivered" || o.status === "completed"
+    ).length,
+    issues: orders.filter((o) => o.status === "cancelled").length,
+  };
+
   if (loading)
     return (
-      <div className="h-64 flex justify-center items-center">
-        <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
+      <div className="h-96 flex justify-center items-center">
+        <Loader2 className="animate-spin w-8 h-8 text-black" />
       </div>
     );
   if (error)
-    return <div className="text-center py-10 text-red-500">{error}</div>;
+    return <div className="text-center py-20 text-red-500">{error}</div>;
 
   return (
-    <div className="max-w-6xl mx-auto pb-10">
-      <div className="flex justify-between items-center mb-8">
+    <div className="max-w-7xl mx-auto pb-20">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">Overview of your delivery status</p>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+            Orders
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Manage and track your delivery shipments.
+          </p>
         </div>
         <Button
           onClick={() => navigate("/dashboard/new-order")}
-          className="bg-black hover:bg-gray-800 text-white shadow-lg"
+          className="bg-black hover:bg-gray-800 text-white shadow-lg rounded-full px-6 transition-transform hover:scale-105 active:scale-95"
         >
-          <Plus className="w-5 h-5 mr-2" /> New Order
+          <Plus className="w-5 h-5 mr-2" /> New Shipment
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      {/* Stats Cards - Updated with Amazon/Uber style cleanliness */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <StatsCard
           title="Total Orders"
-          value={orders.length}
+          value={stats.total}
           icon={Package}
-          color="bg-blue-500"
+          bgClass="bg-blue-50"
+          colorClass="text-blue-600"
         />
         <StatsCard
-          title="In Transit"
-          value={orders.filter((o) => o.status === "in_transit").length}
+          title="Active / In-Transit"
+          value={stats.active}
           icon={Truck}
-          color="bg-yellow-500"
+          bgClass="bg-yellow-50"
+          colorClass="text-yellow-600"
         />
         <StatsCard
-          title="Completed"
-          value={orders.filter((o) => o.status === "delivered").length}
+          title="Delivered"
+          value={stats.completed}
           icon={CheckCircle}
-          color="bg-green-500"
+          bgClass="bg-green-50"
+          colorClass="text-green-600"
         />
         <StatsCard
-          title="Alerts"
-          value="0"
+          title="Cancelled / Issues"
+          value={stats.issues}
           icon={AlertCircle}
-          color="bg-red-500"
+          bgClass="bg-red-50"
+          colorClass="text-red-600"
         />
       </div>
 
+      {/* Order List */}
       <div className="space-y-4">
         {orders.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-            <p className="text-gray-500">No active orders found.</p>
+          <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+            <div className="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+              <Package className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900">
+              No orders found
+            </h3>
+            <p className="text-gray-500 mt-1">
+              Get started by creating your first shipment.
+            </p>
           </div>
         ) : (
           orders.map((order) => (
