@@ -1,8 +1,15 @@
 server:
   port: 8000
 
-logging:
-  level:
-    root: INFO
-    org.springframework.web: INFO
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dispatch
+    username: dispatch
+    password: dispatch
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
