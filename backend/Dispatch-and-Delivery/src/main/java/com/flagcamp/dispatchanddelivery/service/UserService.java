@@ -28,6 +28,12 @@ public class UserService {
     @Transactional
     public void signUp(String email, String password) {
         email = email.toLowerCase();
+
+        // Check if the user already exists in the system
+        if (userDetailsManager.userExists(email)) {
+            throw new IllegalStateException("User already exists");
+        }
+
         UserDetails user = User.builder()
                 .username(email)
                 .password(passwordEncoder.encode(password))
