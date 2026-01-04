@@ -7,6 +7,8 @@ import {
   BarChart3,
   User,
 } from "lucide-react";
+import axios from "axios";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
@@ -32,13 +34,22 @@ export function Sidebar() {
     { icon: BarChart3, label: "Analytics", active: false },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_id");
-    localStorage.removeItem("role");
-    localStorage.removeItem("expiration");
-    localStorage.removeItem("username");
-    navigate("/login", { replace: true });
+  const handleLogout = async () => {
+    try {
+      await axios.post("/logout", null, { withCredentials: true });
+      toast.success("Logged out");
+    } catch (err) {
+      console.error("Logout error:", err);
+      // avoid stucking
+      toast.error("Logout failed (cleared locally)");
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("role");
+      localStorage.removeItem("expiration");
+      localStorage.removeItem("username");
+      navigate("/login", { replace: true });
+    }
   };
 
   return (
