@@ -1,0 +1,9 @@
+package com.flagcamp.dispatchanddelivery.repository;
+
+import com.flagcamp.dispatchanddelivery.entity.HubEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface HubRepository extends JpaRepository<HubEntity, String> {
+}

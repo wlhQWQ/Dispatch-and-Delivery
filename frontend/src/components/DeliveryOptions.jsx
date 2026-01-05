@@ -100,12 +100,12 @@
 
 //       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 //         {deliveryMethods.map((method) => {
-//           const isSelected = selectedMethod === method.id;
+//           const isSelected = selectedMethod === method.robot_type;
 //           const Icon = method.icon;
 //           return (
 //             <div
-//               key={method.id}
-//               onClick={() => setSelectedMethod(method.id)}
+//               key={method.robot_type}
+//               onClick={() => setSelectedMethod(method.robot_type)}
 //               className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all ${
 //                 isSelected
 //                   ? "border-black bg-gray-50 ring-1 ring-black"
@@ -178,7 +178,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Bot,
-  Plane,
+  Drone,
   Check,
   Loader2,
   ArrowLeft,
@@ -191,15 +191,22 @@ import { StepIndicator } from "./StepIndicator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 // 引入 API
 import { createOrder, previewRoute } from "../api/orderApi";
+// import hooks and utils
+import { useGeocoder } from "../hooks/useGeocoder";
+import { geocodeAddress } from "../utils/geocoding";
+import ViewMap from "./ViewMap";
 
 export function DeliveryOptions() {
   const navigate = useNavigate();
   const location = useLocation();
   const shippingData = location.state;
 
+  //hooks
+  const geocoder = useGeocoder();
+
   // State
   const [deliveryMethods, setDeliveryMethods] = useState([]); // 存储从后端获取的动态选项
-  const [selectedMethodId, setSelectedMethodId] = useState(null);
+  const [selectedMethodType, setselectedMethodType] = useState("");
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(true); // 算路 Loading
   const [isSubmitting, setIsSubmitting] = useState(false); // 提交 Loading
 
@@ -214,24 +221,51 @@ export function DeliveryOptions() {
       return;
     }
 
+    // Wait for geocoder to be ready
+    if (!geocoder) {
+      return;
+    }
+
     // 2. 调用 Preview Route API 获取动态价格和时长
     const fetchRoutes = async () => {
       setIsLoadingRoutes(true);
       try {
+        const fromCoord = await geocodeAddress(
+          geocoder,
+          shippingData.from_address
+        );
+        const toCoord = await geocodeAddress(geocoder, shippingData.to_address);
+
         const routes = await previewRoute({
           from_address: shippingData.from_address,
           to_address: shippingData.to_address,
+          from_lng: fromCoord.lng,
+          from_lat: fromCoord.lat,
+          to_lng: toCoord.lng,
+          to_lat: toCoord.lat,
         });
-        setDeliveryMethods(routes);
+
+        console.log("Backend response:", routes);
+
+        // Ensure routes is always an array
+        if (Array.isArray(routes)) {
+          setDeliveryMethods(routes);
+        } else {
+          console.error("Backend returned non-array data:", routes);
+          setDeliveryMethods([]);
+          alert("Invalid response from server. Please try again.");
+        }
       } catch (error) {
+        console.error("Route calculation error:", error);
         alert("Failed to calculate routes. Please try again.");
+        setDeliveryMethods([]);
       } finally {
         setIsLoadingRoutes(false);
       }
     };
 
     fetchRoutes();
-  }, [shippingData, navigate]);
+  }, [shippingData, navigate, geocoder]);
 
   // 处理 View Map 点击
   const handleViewMap = (e, method) => {
@@ -242,13 +276,13 @@ export function DeliveryOptions() {
 
   // 处理最终提交
   const handleConfirm = async () => {
-    if (!selectedMethodId) return;
+    if (!selectedMethodType) return;
     setIsSubmitting(true);
 
     try {
       // 找到用户选中的那个动态方案
       const selectedOption = deliveryMethods.find(
-        (m) => m.id === selectedMethodId
+        (m) => m.robot_type === selectedMethodType
       );
 
       // 处理物品描述字符串
@@ -265,13 +299,14 @@ export function DeliveryOptions() {
       const finalPayload = {
         from_address: shippingData.from_address,
         to_address: shippingData.to_address,
-        pickup_time: new Date().toISOString(), // 假设立即发货
+        //pickup_time: new Date().toISOString(), // 假设立即发货
         duration: selectedOption.duration, // 来自 Preview API
         price: selectedOption.price, // 来自 Preview API
         item_description: descriptionString,
         weight: totalWeight,
         // 可选：把算好的 route 也传回去存起来
-        // route: selectedOption.route
+        route: selectedOption.route,
+        robot_type: selectedOption.robot_type,
       };
 
       await createOrder(finalPayload);
@@ -316,13 +351,13 @@ export function DeliveryOptions() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {deliveryMethods.map((method) => {
-            const isSelected = selectedMethodId === method.id;
-            const Icon = method.id === "drone" ? Plane : Bot; // 简单的图标映射逻辑
+            const isSelected = selectedMethodType === method.robot_type;
+            const Icon = method.robot_type === "drone" ? Drone : Bot; // 简单的图标映射逻辑
 
             return (
               <div
-                key={method.id}
-                onClick={() => setSelectedMethodId(method.id)}
+                key={method.robot_type}
+                onClick={() => setselectedMethodType(method.robot_type)}
                 className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-200 group
                   ${
                     isSelected
@@ -363,14 +398,15 @@ export function DeliveryOptions() {
                   {method.description}
                 </p>
 
-                {/* --- 恢复功能：View Map Button --- */}
+                {/* View Map Button --- */}
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700"
                   onClick={(e) => handleViewMap(e, method)}
                 >
-                  <MapIcon className="w-4 h-4 mr-2" /> View Map Route
+                  <MapIcon className="w-4 h-4 mr-2" />
+                  View on Map
                 </Button>
               </div>
             );
@@ -386,9 +422,9 @@ export function DeliveryOptions() {
           </p>
           <p className="text-4xl font-extrabold text-gray-900 tracking-tight">
             $
-            {selectedMethodId
+            {selectedMethodType
               ? deliveryMethods
-                  .find((m) => m.id === selectedMethodId)
+                  .find((m) => m.robot_type === selectedMethodType)
                   ?.price.toFixed(2)
               : "0.00"}
           </p>
@@ -396,7 +432,7 @@ export function DeliveryOptions() {
 
         <Button
           onClick={handleConfirm}
-          disabled={!selectedMethodId || isSubmitting || isLoadingRoutes}
+          disabled={!selectedMethodType || isSubmitting || isLoadingRoutes}
           className="w-full sm:w-auto bg-black text-white hover:bg-gray-800 py-7 px-10 text-lg font-bold rounded-xl shadow-lg transition-all disabled:opacity-50"
         >
           {isSubmitting ? (
@@ -419,24 +455,19 @@ export function DeliveryOptions() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="h-[400px] bg-slate-50 flex flex-col items-center justify-center text-gray-400 relative">
-            {/* 这里是地图占位符，以后你可以接入 Google Maps */}
-            <div className="absolute inset-0 opacity-10 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover"></div>
-
-            <div className="z-10 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-3 max-w-sm text-center">
-              <MapPin className="w-10 h-10 text-blue-500" />
-              <div>
-                <p className="text-gray-900 font-semibold mb-1">
-                  Route Visualization
-                </p>
-                <p className="text-xs text-gray-500">
-                  Showing route data for{" "}
-                  <span className="font-mono text-blue-600">
-                    {mapRouteData?.route || "N/A"}
-                  </span>
-                </p>
+          <div className="h-[500px] bg-slate-50 relative">
+            {mapRouteData?.route ? (
+              <ViewMap route={mapRouteData.route} />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-3 max-w-sm text-center">
+                  <MapPin className="w-10 h-10 text-gray-400" />
+                  <p className="text-gray-600 font-medium">
+                    No route data available
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

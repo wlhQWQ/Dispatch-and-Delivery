@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   APIProvider,
   Map,
@@ -6,22 +6,33 @@ import {
   AdvancedMarker,
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
-import axios from "axios";
-import { BASE_URL, TOKEN_KEY } from "../constants";
 import { Drone, Bot } from "lucide-react";
+import { trackOrder } from "../api/trackApi";
 
 export default function Tracking(props) {
-  const order = props.order;
-  const [route, setRoute] = useState("");
+    
+    // ... rest of code
+  const { order_id, robot_type } = props;
+  const [route, setRoute] = useState(null);
   const [position, setPosition] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shouldZoom, setShouldZoom] = useState(true);
   const [startPosition, setStartPosition] = useState(null);
   const [endPosition, setEndPosition] = useState(null);
 
-  const id = order.id;
   const abortControllerRef = useRef(null);
-  const positionsSetRef = useRef(false);
+  const setStartEndRef = useRef(false);
+  const intervalRef = useRef(null);
+
+  console.log("Tracking component received:", { order_id, robot_type });
+  console.log("robot_type type:", typeof robot_type);
+  console.log("robot_type exact value:", JSON.stringify(robot_type));
+
+  // When route changes, update start and end marker, and shouldZoom
+  useEffect(() => {
+    setStartEndRef.current = false;
+    setShouldZoom(true);
+  }, [route]);
 
   function DrawRoute({ route, shouldZoom }) {
     const map = useMap();
@@ -30,7 +41,31 @@ export default function Tracking(props) {
 
     useEffect(() => {
       if (!map || !route || !geometryLib) return;
-      const decodedRoute = google.maps.geometry.encoding.decodePath(route);
+
+      if (!google?.maps?.geometry?.encoding) {
+        console.warn("Google Maps geometry encoding not available yet");
+        return;
+      }
+
+      let decodedRoute;
+      try {
+        // Add error handling for decodePath
+        decodedRoute = google.maps.geometry.encoding.decodePath(route);
+
+        // Validate decoded route
+        if (
+          !decodedRoute ||
+          !Array.isArray(decodedRoute) ||
+          decodedRoute.length === 0
+        ) {
+          console.warn("Invalid decoded route: empty or invalid path");
+          return;
+        }
+      } catch (error) {
+        console.error("Error decoding route path:", error);
+        return;
+      }
+
       // Remove old polyline if exists
       if (polylineRef.current) {
         polylineRef.current.setMap(null);
@@ -45,13 +80,13 @@ export default function Tracking(props) {
       });
 
       //set start and end positions for markers (only once)
-      if (decodedRoute.length > 0 && !positionsSetRef.current) {
+      if (decodedRoute.length > 0 && !setStartEndRef.current) {
         const startPoint = decodedRoute[0];
         setStartPosition({ lat: startPoint.lat(), lng: startPoint.lng() });
 
         const endPoint = decodedRoute[decodedRoute.length - 1];
         setEndPosition({ lat: endPoint.lat(), lng: endPoint.lng() });
-        positionsSetRef.current = true;
+        setStartEndRef.current = true;
       }
 
       //auto zoom to fit the route only once
@@ -71,16 +106,21 @@ export default function Tracking(props) {
     return null;
   }
 
-  function DrawPosition({ order, position }) {
+  function DrawPosition({ position }) {
+    // Validate position data
     if (!position) return null;
+    if (isNaN(position.lat) || isNaN(position.lng)) {
+      console.warn("Invalid position data: lat or lng is NaN");
+      return null;
+    }
 
-    const Icon = order.deliveryMethod === "Robot" ? Bot : Drone;
+    const Icon = robot_type?.toLowerCase() === "robot" ? Bot : Drone;
 
     return (
       <AdvancedMarker
         position={{ lat: position.lat, lng: position.lng }}
         title={`Current Position (${
-          order.deliveryMethod === "Robot" ? "Robot" : "Drone"
+          robot_type === "Robot" ? "Robot" : "Drone"
         })`}
       >
         <div
@@ -102,160 +142,195 @@ export default function Tracking(props) {
     );
   }
 
-  //compute data, just for test
-  function computeRouteAndPosition(order, encodedRoute) {
-    if (!window.google?.maps?.geometry?.encoding) {
-      console.warn("Google Maps geometry library not loaded yet");
-      return null;
-    }
+  // //compute data, just for test
+  // function computeRouteAndPosition(order, encodedRoute) {
+  //   if (!window.google?.maps?.geometry?.encoding) {
+  //     console.warn("Google Maps geometry library not loaded yet");
+  //     return null;
+  //   }
 
-    const pickupTime = new Date(order.pickupTime).getTime();
-    const currentTime = Date.now();
+  //   if (!encodedRoute) {
+  //     console.warn("No encoded route available for this order");
+  //     return null;
+  //   }
 
-    // Calculate duration between them
-    let elapsed = currentTime - pickupTime;
-    let duration = order.duration * 60000;
+  //   const pickupTime = new Date(order.pickupTime).getTime();
+  //   const currentTime = Date.now();
 
-    // Calculate progress ratio
-    let progressRatio = Math.min(1.0, elapsed / duration);
+  //   // Calculate duration between them
+  //   let elapsed = currentTime - pickupTime;
+  //   let duration = order.duration * 60000;
 
-    //track info in terminal
-    console.log("Debug tracking:", {
-      pickupTime: order.pickupTime,
-      pickupTimeMs: pickupTime,
-      currentTime,
-      elapsed,
-      duration,
-      progressRatio,
-      elapsedMinutes: elapsed / 60000,
-    });
+  //   // Calculate progress ratio
+  //   let progressRatio = Math.min(1.0, elapsed / duration);
 
-    // If progress >= 1.0, delivery is complete (at end location)
-    if (progressRatio >= 1.0) {
-      return { lat: order.toLat, lng: order.toLng };
-    }
-    // Decode using Google's built-in decoder
-    const pathPoints = google.maps.geometry.encoding.decodePath(encodedRoute);
+  //   //track info in terminal
+  //   console.log("Debug tracking:", {
+  //     pickupTime: order.pickupTime,
+  //     pickupTimeMs: pickupTime,
+  //     currentTime,
+  //     elapsed,
+  //     duration,
+  //     progressRatio,
+  //     elapsedMinutes: elapsed / 60000,
+  //   });
 
-    const currentPosition = getPositionAlongPath(pathPoints, progressRatio);
+  //   // If progress >= 1.0, delivery is complete (at end location)
+  //   if (progressRatio >= 1.0) {
+  //     return { lat: order.toLat, lng: order.toLng };
+  //   }
+  //   // Decode using Google's built-in decoder
+  //   const pathPoints = google.maps.geometry.encoding.decodePath(encodedRoute);
 
-    return currentPosition;
-  }
+  //   const currentPosition = getPositionAlongPath(pathPoints, progressRatio);
 
-  function getPositionAlongPath(pathPoints, progressRatio) {
-    if (!pathPoints || pathPoints.length === 0) {
-      return null;
-    }
+  //   return currentPosition;
+  // }
 
-    // Calculate total distance and segment distances
-    let totalDistance = 0;
-    let segmentDistances = [];
+  // function getPositionAlongPath(pathPoints, progressRatio) {
+  //   if (!pathPoints || pathPoints.length === 0) {
+  //     return null;
+  //   }
 
-    for (let i = 0; i < pathPoints.length - 1; i++) {
-      let segmentDist = calculateDistance(pathPoints[i], pathPoints[i + 1]);
-      segmentDistances.push(segmentDist);
-      totalDistance += segmentDist;
-    }
-    // Find target distance
-    let targetDistance = totalDistance * progressRatio;
+  //   // Calculate total distance and segment distances
+  //   let totalDistance = 0;
+  //   let segmentDistances = [];
 
-    // Find segment containing target distance
-    let accumulatedDistance = 0;
-    for (let i = 0; i < segmentDistances.length; i++) {
-      let segmentDist = segmentDistances[i];
+  //   for (let i = 0; i < pathPoints.length - 1; i++) {
+  //     let segmentDist = calculateDistance(pathPoints[i], pathPoints[i + 1]);
+  //     segmentDistances.push(segmentDist);
+  //     totalDistance += segmentDist;
+  //   }
+  //   // Find target distance
+  //   let targetDistance = totalDistance * progressRatio;
 
-      if (accumulatedDistance + segmentDist >= targetDistance) {
-        let distanceIntoSegment = targetDistance - accumulatedDistance;
-        let segmentRatio = distanceIntoSegment / segmentDist;
-        return interpolate(pathPoints[i], pathPoints[i + 1], segmentRatio);
+  //   // Find segment containing target distance
+  //   let accumulatedDistance = 0;
+  //   for (let i = 0; i < segmentDistances.length; i++) {
+  //     let segmentDist = segmentDistances[i];
+
+  //     if (accumulatedDistance + segmentDist >= targetDistance) {
+  //       let distanceIntoSegment = targetDistance - accumulatedDistance;
+  //       let segmentRatio = distanceIntoSegment / segmentDist;
+  //       return interpolate(pathPoints[i], pathPoints[i + 1], segmentRatio);
+  //     }
+
+  //     accumulatedDistance += segmentDist;
+  //   }
+
+  //   return {
+  //     lat: pathPoints[pathPoints.length - 1].lat(),
+  //     lng: pathPoints[pathPoints.length - 1].lng(),
+  //   };
+  // }
+
+  // function interpolate(start, end, ratio) {
+  //   // Call .lat() and .lng() methods on LatLng objects
+  //   const lat = start.lat() + (end.lat() - start.lat()) * ratio;
+  //   const lng = start.lng() + (end.lng() - start.lng()) * ratio;
+  //   return { lat, lng }; // Return plain object
+  // }
+
+  // //seems google map doesn't have this...
+  // function calculateDistance(point1, point2) {
+  //   // Add this check
+  //   if (!window.google?.maps?.geometry?.spherical) {
+  //     console.warn("Google Maps geometry library not loaded yet");
+  //     return 0; // Return 0 distance as fallback
+  //   }
+
+  //   return google.maps.geometry.spherical.computeDistanceBetween(
+  //     point1,
+  //     point2
+  //   );
+  // }
+
+  //useCallback: recreates this function when id changes
+  const fetchTrackingData = useCallback(
+    async (isInitialFetch = false) => {
+      //cancel previous request(if no response for > 10s)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
+      abortControllerRef.current = new AbortController();
 
-      accumulatedDistance += segmentDist;
-    }
+      try {
+        // //mock computation
+        // if (isInitialFetch) {
+        //   setRoute(order.encodedRoute)
+        // }
 
-    return {
-      lat: pathPoints[pathPoints.length - 1].lat(),
-      lng: pathPoints[pathPoints.length - 1].lng(),
-    };
-  }
+        // const computedPosition = computeRouteAndPosition(
+        //   order,
+        //   route,
+        //   //order.encodedRoute,
+        // );
+        // Only update position if computation succeeded
+        // if (computedPosition) {
+        //   setPosition(computedPosition);
+        //   // console.log("Mock tracking - Position updated:", computedPosition);
+        // }
 
-  function interpolate(start, end, ratio) {
-    // Call .lat() and .lng() methods on LatLng objects
-    const lat = start.lat() + (end.lat() - start.lat()) * ratio;
-    const lng = start.lng() + (end.lng() - start.lng()) * ratio;
-    return { lat, lng }; // Return plain object
-  }
+        // //without api
+        // const res = await axios.get(
+        //   `${BASE_URL}/dashboard/orders/track?id=${id}`,
+        //   {
+        //     headers: {
+        //       // Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`,
+        //       Accept: "application/json",
+        //     },
+        //     signal: abortControllerRef.current.signal,
+        //     timeout: isInitialFetch ? 30000 : 10000,
+        //   }
+        // );
+        const res = await trackOrder(order_id, {
+          signal: abortControllerRef.current.signal,
+          timeout: isInitialFetch ? 30000 : 10000,
+        });
+        console.log("check response:", res.data);
 
-  //seems google map doesn't have this...
-  function calculateDistance(point1, point2) {
-    // Add this check
-    if (!window.google?.maps?.geometry?.spherical) {
-      console.warn("Google Maps geometry library not loaded yet");
-      return 0; // Return 0 distance as fallback
-    }
+        // Validate response data before setting state
+        if (res.data) {
+          
+          // Validate route data
+          if (res.data.route) {
+            setRoute(res.data.route);
+          } else {
+            console.warn("Invalid route data received from API");
+          }
 
-    return google.maps.geometry.spherical.computeDistanceBetween(
-      point1,
-      point2
-    );
-  }
-
-  const fetchTrackingData = async (isInitialFetch = false) => {
-    //cancel previous request(if no response for > 10s)
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    try {
-      if (isInitialFetch) {
-        setRoute(order.encodedRoute);
+          // Validate position data
+          if (res.data.position) {
+            setPosition(res.data.position);
+          } else {
+            console.warn("Invalid position data received from API");
+          }
+        }
+      } catch (err) {
+        if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+          console.log("position update request aborted");
+        } else {
+          console.error(err);
+        }
+      } finally {
+        // Only set loading to false on initial fetch
+        if (isInitialFetch) {
+          setIsLoading(false);
+        }
       }
-
-      const computedPosition = computeRouteAndPosition(
-        order,
-        order.encodedRoute
-      );
-      // Only update position if computation succeeded
-      if (computedPosition) {
-        setPosition(computedPosition);
-        console.log("Mock tracking - Position updated:", computedPosition);
-      }
-
-      // const res = await axios.get(
-      //   `${BASE_URL}/dashboard/orders/track?id=${id}`,
-      //   {
-      //     headers: {
-      //       // Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`,
-      //       Accept: "application/json",
-      //     },
-      //     signal: abortControllerRef.current.signal,
-      //     timeout: isInitialFetch ? 30000 : 10000,
-      //   }
-      // );
-      // console.log("check response:", res.data);
-
-      // setRoute(res.data.route);
-      // setPosition(res.data.position);
-    } catch (err) {
-      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
-        console.log("position update request aborted");
-      } else {
-        console.error(err);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [order_id]
+  );
 
   useEffect(() => {
     // Wait a bit for Google Maps to be ready
-    let interval;
     const initTimer = setTimeout(() => {
       const initializeTracking = async () => {
-        await fetchTrackingData(true); // Wait for initial fetch to complete/timeout
-        setIsLoading(false);
-        interval = setInterval(fetchTrackingData, 10000); // Then start polling
+        await fetchTrackingData(true); // Wait for initial fetch to complete/timeout (handles setIsLoading internally)
+        intervalRef.current = setInterval(
+          () => fetchTrackingData(false),
+          10000
+        ); // Then start polling with isInitialFetch=false
       };
 
       initializeTracking();
@@ -263,15 +338,15 @@ export default function Tracking(props) {
 
     return () => {
       clearTimeout(initTimer);
-      if (interval) {
-        clearInterval(interval);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
       // Clean up abort controller on unmount
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [id]);
+  }, [order_id, fetchTrackingData]);
 
   if (isLoading) {
     return <div>Loading tracking data...</div>;
@@ -289,7 +364,8 @@ export default function Tracking(props) {
         mapId="DEMO_MAP_ID"
       >
         <DrawRoute route={route} shouldZoom={shouldZoom} />
-        <DrawPosition order={order} position={position} />
+        {/* <DrawRoute route={order.encodedroute} shouldZoom={shouldZoom} /> */}
+        <DrawPosition position={position} />
 
         {/* Start Marker */}
         {startPosition && (

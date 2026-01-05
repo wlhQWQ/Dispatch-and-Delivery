@@ -4,6 +4,9 @@ import {
   RouterProvider,
   Navigate,
 } from "react-router-dom";
+
+import { APIProvider } from "@vis.gl/react-google-maps";
+
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
@@ -68,11 +71,13 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")).render(
-    <>
+    <APIProvider
+    apiKey={import.meta.env.VITE_GOOGLE_MAP_API_KEY}
+    libraries={["geocoding", "geometry"]}>
         <MailboxProvider>
             <RouterProvider router={router} />
             <Toaster />
         </MailboxProvider>
-    </>
+    </APIProvider>
 );
 

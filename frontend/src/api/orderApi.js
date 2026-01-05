@@ -83,12 +83,12 @@
 //     throw error;
 //   }
 // };
-// // createOrder封装了发送 POST 请求的逻辑
-// // connect 后端时直接把mock_order删掉
+// createOrder封装了发送 POST 请求的逻辑
+// connect 后端时直接把mock_order删掉
 
 import { apiClient } from "./apiClient";
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // Mock Data for Order List (Keep existing)
 const MOCK_ORDERS = [
@@ -134,20 +134,20 @@ export const previewRoute = async (addressData) => {
         // 模拟后端计算出来的动态数据
         resolve([
           {
-            id: "robot",
+            robot_type: "robot",
             name: "Autonomous Robot",
             price: 12.5, // 动态价格
             duration: 45, // 动态时长
             route: "polyline_data_robot_123", // 地图路线数据
-            description: "Eco-friendly. Best for ground delivery.",
+            description: "cheapest ground delivery.",
           },
           {
-            id: "drone",
+            robot_type: "drone",
             name: "Drone",
             price: 28.0,
             duration: 15,
             route: "polyline_data_drone_456",
-            description: "Fastest aerial delivery for urgent needs.",
+            description: "Fastest aerial delivery.",
           },
         ]);
       }, 1500); // 模拟网络延迟 1.5s
@@ -155,14 +155,85 @@ export const previewRoute = async (addressData) => {
   }
 
   try {
-    // 后端接口是 POST /dashboard/orders/deliveryOptions
     const response = await apiClient.post(
-      "/dashboard/orders/deliveryOptions",
+      "/dashboard/orders/deliveryOptions/preview",
       addressData
     );
-    return response.data;
+
+    const data = response.data;
+
+    // Check if response is an error object
+    if (data.error || data.message) {
+      throw new Error(
+        data.message || data.error || "Backend returned an error"
+      );
+    }
+
+    // Backend returns snake_case (robot_route, drone_route)
+    // Support both camelCase and snake_case for compatibility
+    const robotRoute = data.robotRoute || data.robot_route;
+    const droneRoute = data.droneRoute || data.drone_route;
+
+    // Validate routes exist
+    if (!robotRoute) {
+      console.error("⚠️ robotRoute is missing from backend response!");
+    }
+    if (!droneRoute) {
+      console.error("⚠️ droneRoute is missing from backend response!");
+    }
+
+    // Map backend field names to frontend format
+    const transformRoute = (route, type) => {
+      // Defensive check: if route is undefined/null, return null
+      if (!route) {
+        console.warn(`${type} route is undefined in backend response`);
+        return null;
+      }
+
+      return {
+        robot_type: route.robot_type || route.robotType || type,
+        name: type === "robot" ? "robot" : "drone",
+        price: route.price,
+        duration: route.duration,
+        route: route.encoded_polyline || route.encodedPolyline,
+        description:
+          type === "robot"
+            ? "cheapest ground delivery."
+            : "Fastest aerial delivery.",
+      };
+    };
+
+    // Filter out null routes (in case backend doesn't provide both)
+    const routes = [
+      transformRoute(robotRoute, "robot"),
+      transformRoute(droneRoute, "drone"),
+    ].filter((route) => route !== null);
+
+    // Ensure we have at least one route
+    if (routes.length === 0) {
+      throw new Error(
+        "No valid routes returned from backend. Check backend logs for errors."
+      );
+    }
+
+    return routes;
   } catch (error) {
-    console.error("Preview route failed:", error);
+    console.error("Preview route failed:", error.message);
+
+    // If it's an HTTP error response, extract the error message
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    } else if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+
+    // If there's no response, it's likely a network error
+    if (!error.response) {
+      throw new Error(
+        `Network error: ${error.message}. Is the backend running on ${apiClient.defaults.baseURL}?`
+      );
+    }
+
     throw error;
   }
 };

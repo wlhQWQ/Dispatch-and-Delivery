@@ -374,6 +374,7 @@ import {
   DialogDescription,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
+import Tracking from "./Tracking";
 import { getOrders } from "../api/orderApi"; // backend data
 
 // --- Stats Card ---
@@ -618,7 +619,6 @@ function OrderCard({ order }) {
                 onClick={() => setIsTrackingOpen(true)}
                 className="bg-black text-white hover:bg-gray-800 shadow-lg hover:shadow-xl font-bold transition-all h-10 px-6 rounded-lg ml-auto"
               >
-                <Map className="w-4 h-4 mr-2" />
                 Track Order
               </Button>
             )}
@@ -640,10 +640,8 @@ function OrderCard({ order }) {
           <div className="h-[500px] bg-gray-50 flex items-center justify-center">
             <div className="p-6 bg-white rounded-full shadow-sm flex flex-col items-center gap-3 border border-gray-100">
               <MapPin className="w-10 h-10 text-gray-300" />
-              <p className="text-gray-500 font-semibold">
-                Map Visualization Component
-              </p>
             </div>
+            <Tracking order_id={order.order_id} robot_type={order.robot_type} />
           </div>
         </DialogContent>
       </Dialog>
@@ -675,17 +673,17 @@ export function OrderList() {
   useEffect(() => {
     fetchOrders(); // 第一次加载
 
-    // 设置定时器，每 5 秒自动刷新一次数据
-    const intervalId = setInterval(() => {
-      // 这里调用 getOrders 时最好不要 setLoading(true)，否则页面会一直闪烁转圈
-      // 我们可以做一个静默刷新的逻辑
-      getOrders().then((data) => {
-        setOrders(data || []);
-      });
-    }, 5000); // 5000毫秒 = 5秒
+    // // 设置定时器，每 5 秒自动刷新一次数据
+    // const intervalId = setInterval(() => {
+    //   // 这里调用 getOrders 时最好不要 setLoading(true)，否则页面会一直闪烁转圈
+    //   // 我们可以做一个静默刷新的逻辑
+    //   getOrders().then((data) => {
+    //     setOrders(data || []);
+    //   });
+    // }, 5000); // 5000毫秒 = 5秒
 
-    // 组件卸载时清除定时器，防止内存泄漏
-    return () => clearInterval(intervalId);
+    // // 组件卸载时清除定时器，防止内存泄漏
+    // return () => clearInterval(intervalId);
   }, []);
 
   // 计算 Stats

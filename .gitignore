@@ -2,30 +2,23 @@
 .env.local
 .env.*.local
 
-.vscode
 
-#test for backend and setup
-backend/
-scripts/
-README.md
-docker-compose.yml
+ Ignore all markdown documentation files
+*.md
 
 # Dependencies
 node_modules/
-frontend/node_modules/
 
 # Build outputs
 frontend/dist/
 frontend/dist-ssr/
-backend/Dispatch-and-Delivery/build/
-backend/Dispatch-and-Delivery/.gradle/
+build/
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
 
 # Java/Gradle specific
 *.class
-.gradle/
-build/
-gradle-app.setting
-!gradle-wrapper.jar
 
 # Logs
 logs/
@@ -38,7 +31,6 @@ pnpm-debug.log*
 # OS specific
 .DS_Store
 Thumbs.db
-
 
 # IDE specific
 .vscode/
