@@ -1,6 +1,5 @@
 package com.flagcamp.dispatchanddelivery.model;
 import jakarta.persistence.*;
-import jakarta.persistence.Id;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;

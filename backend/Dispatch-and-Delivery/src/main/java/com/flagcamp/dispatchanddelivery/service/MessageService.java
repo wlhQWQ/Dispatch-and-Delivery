@@ -2,17 +2,14 @@ package com.flagcamp.dispatchanddelivery.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flagcamp.dispatchanddelivery.mailbox.ConfirmRequest;
 import com.flagcamp.dispatchanddelivery.mailbox.MailboxMessage;
-import com.flagcamp.dispatchanddelivery.model.ActionRequired;
-import com.flagcamp.dispatchanddelivery.model.Message;
+import com.flagcamp.dispatchanddelivery.model.*;
 import com.flagcamp.dispatchanddelivery.repository.MessageRepository;
 import com.flagcamp.dispatchanddelivery.socket.MailboxWsHandler;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import com.flagcamp.dispatchanddelivery.model.MessageType;
 
 
 
@@ -20,7 +17,8 @@ import com.flagcamp.dispatchanddelivery.model.MessageType;
 @RequiredArgsConstructor
 public class MessageService {
     private final MessageRepository messageRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper ;
+    private final ApplicationEventPublisher publisher;
 
     public List<MailboxMessage> getMailbox(Long userId) {
         if (userId == null) {
@@ -40,6 +38,11 @@ public class MessageService {
                 .orElseThrow(() -> new IllegalArgumentException("Message not found"));
 
         message.setRead(true);
+        publisher.publishEvent(new MailboxActionConfirmedEvent(
+                message.getUserId(),
+                message.getOrderId(),
+                message.getActionRequired()
+        ));
     }
 
     @Transactional
@@ -60,23 +63,29 @@ public class MessageService {
                 actionRequired
         );
         Message saved = messageRepository.save(message);
-        pushToWebSocket(saved);
+
+        publisher.publishEvent(new MessageCreatedEvent(saved.getId(), saved.getUserId()));
         return saved;
     }
-    private void pushToWebSocket(Message message) {
-        MailboxMessage dto = MailboxMessage.from(message);
-        try {
-            String json = objectMapper.writeValueAsString(dto);
-            MailboxWsHandler.broadcast(json);
-        } catch (Exception e) {
+    @Transactional
+    public Message notifyDeliveryConfirmed(Long userId, Long orderId) {
+        Message message = createMessage(
+                userId,
+                orderId,
+                "Delivery confirmed",
+                "Thanks! Your delivery has been confirmed.",
+                MessageType.INFO,
+                ActionRequired.NONE
+        );
 
-            e.printStackTrace();
-        }
-
+        return message;
     }
+
+
     @Transactional
     public Message notifyPickupArrived(Long userId, Long orderId) {
-        return createMessage(
+
+        Message message = createMessage(
                 userId,
                 orderId,
                 "Robot arrived at pickup",
@@ -84,6 +93,22 @@ public class MessageService {
                 MessageType.ARRIVED,
                 ActionRequired.PICKUP
         );
+
+        return message;
+    }
+    @Transactional
+    public Message notifyPickupConfirmed(Long userId, Long orderId) {
+
+        Message message = createMessage(
+                userId,
+                orderId,
+                "Pickup confirmed",
+                "Robot has picked up your order.",
+                MessageType.INFO,
+                ActionRequired.NONE
+        );
+
+        return message;
     }
 
     @Transactional
