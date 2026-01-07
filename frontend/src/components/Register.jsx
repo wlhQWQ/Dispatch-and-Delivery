@@ -1,4 +1,5 @@
 import React from "react";
+import axios from "axios";
 import { useForm } from "react-hook-form";
 import { User, Lock, Mail } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -14,6 +15,7 @@ import {
 } from "./ui/form";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { BASE_URL } from "../constants";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -26,11 +28,26 @@ const Register = () => {
     },
   });
 
-  const onSubmit = (values) => {
-    console.log("Register values:", values);
-    toast.success("Registration successful");
-    navigate("/dashboard");
+  const onSubmit = async (values) => {
+    try {
+      await axios.post("/signup", {
+        email: values.email,
+        password: values.password,
+      });
+
+      toast.success("Registration successful! Please log in.");
+      navigate("/login");
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Signup failed";
+      toast.error(msg);
+      console.error("Signup error:", err);
+    }
   };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -38,27 +55,6 @@ const Register = () => {
         <h1 className="mb-6 text-2xl font-bold text-center">Register</h1>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="username"
-              rules={{ required: "Please enter a username" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Username"
-                        className="pl-9"
-                        {...field}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="email"
@@ -125,7 +121,7 @@ const Register = () => {
               </Button>
               <div className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
-                <Link to="/" className="text-primary hover:underline">
+                <Link to="/login" className="text-primary hover:underline">
                   Log in
                 </Link>
               </div>

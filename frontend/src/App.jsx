@@ -1,13 +1,16 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // Redirect to login page on mount
-    navigate("/login");
-  }, [navigate]);
+    // Only redirect when user visits root "/"
+    if (location.pathname === "/") {
+      navigate("/login", { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   return null;
 }

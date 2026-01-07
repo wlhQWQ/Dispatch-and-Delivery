@@ -25,15 +25,32 @@ const Login = () => {
   const form = useForm({
     defaultValues: {
       username: "",
+      email: "",
       password: "",
     },
   });
 
-  const onSubmit = (values) => {
-    // Just navigate to dashboard for testing
-    console.log("Login values:", values);
-    toast.success("Login successful");
-    navigate("/dashboard");
+  const onSubmit = async (values) => {
+    try {
+      const form = new URLSearchParams();
+      form.append("username", values.username);
+      form.append("password", values.password);
+
+      await axios.post("/login", form, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        withCredentials: true,
+      });
+
+      localStorage.setItem("username", values.username);
+
+      toast.success("Login successful");
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Login error:", err);
+      toast.error("Login failed");
+    }
   };
 
   return (
@@ -95,7 +112,7 @@ const Login = () => {
               </Button>
               <div className="text-center text-sm text-muted-foreground">
                 Or{" "}
-                <Link to="/register" className="text-primary hover:underline">
+                <Link to="/signup" className="text-primary hover:underline">
                   Sign Up
                 </Link>
               </div>
