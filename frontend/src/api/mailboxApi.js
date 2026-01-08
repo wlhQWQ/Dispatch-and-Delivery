@@ -7,9 +7,13 @@ import { apiClient } from "./apiClient";
  * - 或者 [{ message, time, ... }]
  */
 export async function fetchMailboxMessages() {
-    const res = await apiClient.get("/dashboard/mailbox");
+    const userId = Number(localStorage.getItem("userId")) || 1; // 测试期没登录就用 1
+    const res = await apiClient.get("/dashboard/mailbox", {
+        params: { userId },
+    });
     return res.data;
 }
+
 
 /**
  * 期望后端：POST /dashboard/mailbox/confirm
