@@ -2,6 +2,7 @@ package com.flagcamp.dispatchanddelivery.service;
 
 import com.flagcamp.dispatchanddelivery.mailbox.ConfirmRequest;
 import com.flagcamp.dispatchanddelivery.mailbox.MailboxMessage;
+import com.flagcamp.dispatchanddelivery.model.ActionRequired;
 import com.flagcamp.dispatchanddelivery.socket.MailboxWsHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -65,7 +66,7 @@ public class MailboxService {
         for (MailboxMessage m : messages) {
             if (m.id == req.messageId) {
                 m.read = true;
-                // confirm 后也可以推一条“已确认”的消息给前端（可选）
+
                 MailboxMessage ack = build(
                         "Confirmed: " + (req.action == null ? "ACK" : req.action),
                         "Message #" + req.messageId + " confirmed.",
@@ -78,4 +79,5 @@ public class MailboxService {
             }
         }
     }
+
 }
