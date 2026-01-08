@@ -11,9 +11,10 @@ import { NotFound } from "./components/NotFound";
 import { OrderList } from "./components/OrderList";
 import { ShippingForm } from "./components/ShippingForm";
 import { DeliveryOptions } from "./components/DeliveryOptions";
-import AdminDashboard from "./components/AdminDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import { Mailbox } from "./components/Mailbox";
 import { MailboxProvider } from "./contexts/MailboxContext";
+import StripeMockPage from "./pages/StripeMockPage"
 
 import { Toaster } from "./components/ui/sonner";
 import "./index.css";
@@ -29,6 +30,10 @@ const router = createBrowserRouter([
     errorElement: <NotFound />,
   },
   {
+    path: "/admin",
+    element: <AdminDashboard />,
+  },
+  {
     path: "/signup",
     element: <Register />,
     errorElement: <NotFound />,
@@ -37,6 +42,10 @@ const router = createBrowserRouter([
     path: "/admin/dashboard",
     element: <AdminDashboard />,
     errorElement: <NotFound />,
+  },
+  {
+    path: "/mock-stripe",
+    element: <StripeMockPage />,
   },
   {
     path: "/dashboard",
