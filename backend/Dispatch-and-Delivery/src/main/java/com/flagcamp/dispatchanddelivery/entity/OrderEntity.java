@@ -1,6 +1,6 @@
 package com.flagcamp.dispatchanddelivery.entity;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
@@ -21,7 +21,7 @@ public class OrderEntity {
     private String id;
     
     @Column(name = "submit_time")
-    private Timestamp submitTime;
+    private LocalDateTime submitTime;
     
     @Column(name = "user_id")
     private String userId;
@@ -54,7 +54,7 @@ public class OrderEntity {
     private double price;
     
     @Column(name = "pickup_time")
-    private Timestamp pickupTime;
+    private LocalDateTime pickupTime;
     
     @Column(name = "duration")
     private int duration;

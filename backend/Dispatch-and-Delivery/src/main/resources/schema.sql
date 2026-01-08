@@ -1,9 +1,9 @@
--- PostgreSQL schema for hub table
-CREATE TABLE IF NOT EXISTS hub (
-    id VARCHAR(255) PRIMARY KEY,
+-- PostgreSQL schema for hubs table (plural, matching HubEntity)
+CREATE TABLE IF NOT EXISTS hubs (
+    hub_id VARCHAR(255) PRIMARY KEY,
     address VARCHAR(500),
-    hub_lat DOUBLE PRECISION,
-    hub_lng DOUBLE PRECISION
+    lat DOUBLE PRECISION,
+    lng DOUBLE PRECISION
 );
 
 -- PostgreSQL schema for robot table
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS robot (
     speed DOUBLE PRECISION,
     price DOUBLE PRECISION,
     robot_type VARCHAR(100),
-    FOREIGN KEY (hub_id) REFERENCES hub(id)
+    CONSTRAINT fk_hub FOREIGN KEY (hub_id) REFERENCES hubs (hub_id) ON DELETE CASCADE
 );
 
 -- PostgreSQL schema for orders table

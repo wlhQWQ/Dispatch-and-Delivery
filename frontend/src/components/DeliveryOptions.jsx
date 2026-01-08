@@ -209,6 +209,7 @@ export function DeliveryOptions() {
   const [selectedMethodType, setselectedMethodType] = useState("");
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(true); // 算路 Loading
   const [isSubmitting, setIsSubmitting] = useState(false); // 提交 Loading
+  const [coordinates, setCoordinates] = useState(null); // 存储经纬度坐标
 
   // Map Modal State
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -235,6 +236,14 @@ export function DeliveryOptions() {
           shippingData.from_address
         );
         const toCoord = await geocodeAddress(geocoder, shippingData.to_address);
+
+        // 保存坐标以便后续提交订单时使用
+        setCoordinates({
+          from_lat: fromCoord.lat,
+          from_lng: fromCoord.lng,
+          to_lat: toCoord.lat,
+          to_lng: toCoord.lng,
+        });
 
         const routes = await previewRoute({
           from_address: shippingData.from_address,
@@ -307,6 +316,12 @@ export function DeliveryOptions() {
         // 可选：把算好的 route 也传回去存起来
         route: selectedOption.route,
         robot_type: selectedOption.robot_type,
+        robot_id: selectedOption.robot_id,
+        from_lat: coordinates?.from_lat,
+        from_lng: coordinates?.from_lng,
+        to_lat: coordinates?.to_lat,
+        to_lng: coordinates?.to_lng,
+        distance: selectedOption.distance,
       };
 
       await createOrder(finalPayload);

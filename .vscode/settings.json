@@ -1,4 +1,9 @@
 {
-  "liveServer.settings.port": 5501,
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.import.gradle.arguments": null,
+  "java.import.gradle.user.home": null,
+  "java.jdt.ls.vmargs": "-Dorg.gradle.appname=gradle -Xmx1G",
+  "java.import.gradle.offline.enabled": false,
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.gradle.wrapper.enabled": true,
+  "java.import.gradle.home": null
 }

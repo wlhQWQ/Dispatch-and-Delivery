@@ -14,10 +14,10 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Table("robots")
 public record RobotEntity(
-        @Id Long robot_id,
+        @Id String robot_id,
         boolean available,
         int battery,
-        Long hub_id,          // 外键，指向 hubs.hub_id
+        String hub_id,        // 外键，指向 hubs.hub_id
         double latitude,
         double longitude,
         double max_weight,

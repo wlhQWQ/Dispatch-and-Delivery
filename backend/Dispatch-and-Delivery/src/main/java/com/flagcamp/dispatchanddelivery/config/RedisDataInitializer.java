@@ -62,13 +62,13 @@ public class RedisDataInitializer {
                             continue;
                         }
                         
-                        logger.info("Using hub {} for order {}", closestHub.getId(), order.getId());
+                        logger.info("Using hub {} for order {}", closestHub.hub_id(), order.getId());
                         
                         // Compute route from hub to pickup location
                         // computeRoute returns List<RouteDTO> where [0] is robot route, [1] is drone route
                         List<RouteDTO> hubToPickupRoutes = routeService.computeRoute(
-                            closestHub.getHubLat(),
-                            closestHub.getHubLng(),
+                            closestHub.lat(),
+                            closestHub.lng(),
                             order.getFromLat(),
                             order.getFromLng()
                         );
@@ -91,8 +91,8 @@ public class RedisDataInitializer {
                             order.getId(),
                             hubToPickupRoute.encodedPolyline(),
                             pickupToEndRoute.encodedPolyline(),
-                            closestHub.getHubLat(),
-                            closestHub.getHubLng(),
+                            closestHub.lat(),
+                            closestHub.lng(),
                             hubToPickupRoute.distance(),
                             pickupToEndRoute.distance()
                         );
@@ -128,7 +128,7 @@ public class RedisDataInitializer {
         double minDistance = Double.MAX_VALUE;
         
         for (HubEntity hub : allHubs) {
-            double distance = calculateDistance(lat, lng, hub.getHubLat(), hub.getHubLng());
+            double distance = calculateDistance(lat, lng, hub.lat(), hub.lng());
             
             if (distance < minDistance) {
                 minDistance = distance;

@@ -1,6 +1,8 @@
 package com.flagcamp.dispatchanddelivery.controller;
 
+import com.flagcamp.dispatchanddelivery.entity.HubEntity;
 import com.flagcamp.dispatchanddelivery.entity.OrderEntity;
+import com.flagcamp.dispatchanddelivery.entity.RobotEntity;
 import com.flagcamp.dispatchanddelivery.entity.RouteEntity;
 import com.flagcamp.dispatchanddelivery.model.*;
 import com.flagcamp.dispatchanddelivery.repository.OrderRepository;
@@ -10,6 +12,7 @@ import com.google.maps.model.LatLng;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/dashboard/orders")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}, allowCredentials = "true")
 public class OrderController {
     
     private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
@@ -120,23 +122,21 @@ public class OrderController {
                     request.toLng
                 );
 
-                String closestHubId = robotService.findClosestHub(request.fromLat, request.fromLng);
-
-                //get a robot and a drone
-                RobotOptionsResponse robots = robotService.findRobotsByHubId(closestHubId);
-                
-                // Validate robot options
-                if (robots.getCheapestRobot() == null || robots.getFastestDrone() == null) {
-                    throw new IllegalArgumentException("No available robots or drones at hub");
+                Optional<HubEntity> hub = robotService.findNearestHub(request.fromLat, request.fromLng);
+                if (hub.isEmpty()) {
+                    throw new IllegalArgumentException("No hub found near pickup location");
                 }
+                //get a robot and a drone
+                RobotEntity robot = robotService.findCheapestRobot(hub.get().hub_id()).get();
+                RobotEntity drone = robotService.findFastestDrone(hub.get().hub_id()).get();
 
                 //compute prices: per km for unit price, meter for distance
-                double robotPrice = routeDTOs.get(0).distance() * robots.getCheapestRobot().getPrice() / 1000;
-                double dronePrice = routeDTOs.get(1).distance() * robots.getFastestDrone().getPrice() / 1000;
+                double robotPrice = routeDTOs.get(0).distance() * robot.price() / 1000;
+                double dronePrice = routeDTOs.get(1).distance() * drone.price() / 1000;
                 
                 //compute duration: km/h for speed, minutes for duration, meter for distance
-                int robotDuration = (int) (routeDTOs.get(0).distance() * 60.0 / (robots.getCheapestRobot().getSpeed() * 1000.0));
-                int droneDuration = (int) (routeDTOs.get(1).distance() * 60.0 / (robots.getFastestDrone().getSpeed() * 1000.0));
+                int robotDuration = (int) (routeDTOs.get(0).distance() * 60.0 / (robot.speed() * 1000.0));
+                int droneDuration = (int) (routeDTOs.get(1).distance() * 60.0 / (drone.speed() * 1000.0));
                 
                 // routeDTOs[0] = robot route (road-based), routeDTOs[1] = drone route (straight-line)
                 DeliveryOptionsResponse response = new DeliveryOptionsResponse(
@@ -185,7 +185,9 @@ public class OrderController {
                 
                 // Use actual RouteService method with hardcoded speed of 15 km/h
                 double testSpeed = 15; // km/h - hardcoded for test
-                LatLng position = routeService.computeAndStorePosition(orderId, testSpeed, elapsed, pickup);
+                RouteService.PositionResult result = routeService.computeAndStorePosition(orderId, testSpeed, elapsed, pickup);
+                LatLng position = result.getCurrentPosition();
+                boolean arrived = result.isArrived();
                 
                 // Get the route to return encoded polyline
                 RouteEntity route = routeService.getRoutesByOrderId(orderId);
@@ -204,7 +206,8 @@ public class OrderController {
             // Real implementation
             try {
                 RouteEntity route = routeService.getRoutesByOrderId(orderId);
-                OrderEntity order = orderRepository.getById(orderId);
+                OrderEntity order = orderRepository.findById(orderId)
+                    .orElseThrow(()->(new IllegalArgumentException()));
                 boolean pickup = order.getStatus() == "dispatching";
                 String encodedRoute = pickup ? route.getHubToPickup() : route.getPickupToEnd();
                 PositionResponse response = new PositionResponse(orderId, encodedRoute, route.getPositionLat(),route.getPositionLng());

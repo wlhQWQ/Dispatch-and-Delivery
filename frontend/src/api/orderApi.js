@@ -10,7 +10,7 @@
 //     order_id: "ORD-1001",
 //     from_address: "123 Library St",
 //     to_address: "Dormitory Building A",
-//     status: "in_transit", // pending, in_transit, delivered
+//     status: "in transit", // dispatching, in transit, delivered
 //     route: "encoded_polyline_string_here",
 //     pickup_time: "2024-01-01T10:00:00Z",
 //     duration: 45, // int
@@ -59,7 +59,7 @@
 //         // 模拟后端把新订单插入列表
 //         const newMockOrder = {
 //           order_id: `ORD-${Date.now().toString().slice(-4)}`,
-//           status: "pending",
+//           status: "dispatching",
 //           pickup_time: new Date().toISOString(),
 //           route: "mock_route",
 //           robot_type: orderData.price > 20 ? "drone" : "robot", // 简单模拟
@@ -96,7 +96,7 @@ const MOCK_ORDERS = [
     order_id: "ORD-1001",
     from_address: "123 Library St",
     to_address: "Dormitory Building A",
-    status: "in_transit",
+    status: "in transit",
     route: "mock_route_string",
     pickup_time: "2024-01-01T10:00:00Z",
     duration: 45,
@@ -139,6 +139,8 @@ export const previewRoute = async (addressData) => {
             price: 12.5, // 动态价格
             duration: 45, // 动态时长
             route: "polyline_data_robot_123", // 地图路线数据
+            distance: 1500, // 距离 (米)
+            robot_id: "ROBOT-001",
             description: "cheapest ground delivery.",
           },
           {
@@ -147,6 +149,8 @@ export const previewRoute = async (addressData) => {
             price: 28.0,
             duration: 15,
             route: "polyline_data_drone_456",
+            distance: 1200, // 距离 (米)
+            robot_id: "DRONE-001",
             description: "Fastest aerial delivery.",
           },
         ]);
@@ -196,6 +200,8 @@ export const previewRoute = async (addressData) => {
         price: route.price,
         duration: route.duration,
         route: route.encoded_polyline || route.encodedPolyline,
+        distance: route.distance,
+        robot_id: route.robot_id || route.robotId,
         description:
           type === "robot"
             ? "cheapest ground delivery."

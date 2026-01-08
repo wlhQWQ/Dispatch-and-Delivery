@@ -3,7 +3,7 @@
 .env.*.local
 
 
- Ignore all markdown documentation files
+# Ignore all markdown documentation files
 *.md
 
 # Dependencies
@@ -16,6 +16,7 @@ build/
 .gradle/
 gradle-app.setting
 !gradle-wrapper.jar
+backend/Dispatch-and-Delivery/gradle.properties
 
 # Java/Gradle specific
 *.class

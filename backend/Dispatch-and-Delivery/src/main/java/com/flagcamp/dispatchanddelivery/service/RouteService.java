@@ -25,6 +25,8 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final GoogleMapsClient googleMapsClient;
 
+   
+
     public RouteService(RouteRepository routeRepository, 
                        GoogleMapsClient googleMapsClient) {
         this.routeRepository = routeRepository;
@@ -44,6 +46,7 @@ public class RouteService {
      * @return List of RouteDTO objects: [0] robot route (road-based), [1] drone route (straight-line)
      * @throws RuntimeException if Google Maps API call fails or no routes are found
      */
+    
     public List<RouteDTO> computeRoute(double fromLat, double fromLng, double toLat, double toLng)      throws Exception {
         // Validate coordinates
         if (!isValidCoordinate(fromLat, fromLng)) {
@@ -179,10 +182,10 @@ public class RouteService {
      * @param speed Speed of the robot in kilometers per hour (km/h)
      * @param hasElapsed Time elapsed since the robot started this leg of the journey, in seconds
      * @param pickup If true, uses hub-to-pickup route; if false, uses pickup-to-end route
-     * @return LatLng coordinates representing the robot's current position along the route
+     * @return PositionResult containing the current position and whether the robot has arrived
      * @throws IllegalArgumentException if route is not found, path is invalid, or distance is non-positive
      */
-    public LatLng computeAndStorePosition(String orderId, double speed, int hasElapsed, boolean pickup){
+    public PositionResult computeAndStorePosition(String orderId, double speed, int hasElapsed, boolean pickup){
         RouteEntity routeEntity = getRoutesByOrderId(orderId);
         if (routeEntity == null) {
             throw new IllegalArgumentException("Route not found for order: " + orderId);
@@ -198,7 +201,7 @@ public class RouteService {
             throw new IllegalArgumentException("Path points cannot be null or empty");
         }
         if (pathPoints.size() == 1) {
-            return pathPoints.get(0);
+            return new PositionResult(pathPoints.get(0), true);
         }
         if (distance <= 0) {
             throw new IllegalArgumentException("Distance must be positive");
@@ -214,7 +217,7 @@ public class RouteService {
         if (progressRatio >= 1.0) {
             LatLng endPosition = pathPoints.get(pathPoints.size() - 1);
             updatePosition(orderId, endPosition.lat, endPosition.lng);
-            return endPosition;
+            return new PositionResult(endPosition, true);
         }
         
         LatLng currentPosition = getPositionAlongPath(pathPoints, progressRatio, distance);
@@ -222,7 +225,7 @@ public class RouteService {
         // Update position
         updatePosition(orderId, currentPosition.lat, currentPosition.lng);
 
-        return currentPosition;
+        return new PositionResult(currentPosition, false);
     }
 
 
@@ -370,5 +373,27 @@ public class RouteService {
             throw new IllegalArgumentException("Route not found for order: " + orderId);
         }
         return routeEntity;
+    }
+
+     /**
+     * Result class for computeAndStorePosition method.
+     * Contains the current position and arrival status of the robot.
+     */
+     public static class PositionResult {
+        private final LatLng currentPosition;
+        private final boolean arrived;
+
+        public PositionResult(LatLng currentPosition, boolean arrived) {
+            this.currentPosition = currentPosition;
+            this.arrived = arrived;
+        }
+
+        public LatLng getCurrentPosition() {
+            return currentPosition;
+        }
+
+        public boolean isArrived() {
+            return arrived;
+        }
     }
 }

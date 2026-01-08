@@ -111,13 +111,13 @@
 //           color: "bg-green-100 text-green-800",
 //           icon: CheckCircle,
 //         };
-//       case "pending":
+//       case "dispatching":
 //         return {
-//           label: "Pending",
+//           label: "Dispatching",
 //           color: "bg-yellow-100 text-yellow-800",
 //           icon: Clock,
 //         };
-//       case "in_transit":
+//       case "in transit":
 //       default:
 //         return {
 //           label: "In Transit",
@@ -314,7 +314,7 @@
 //         />
 //         <StatsCard
 //           title="In Transit"
-//           value={orders.filter((o) => o.status === "in_transit").length}
+//           value={orders.filter((o) => o.status === "in transit").length}
 //           icon={Truck}
 //           color="bg-yellow-500"
 //         />
@@ -500,7 +500,7 @@ function OrderCard({ order }) {
             </div>
             <div className="text-gray-600 text-sm font-semibold flex items-center gap-2">
               <Calendar className="w-4 h-4 text-gray-500" />
-              {order.status === "completed" || order.status === "in_transit" ? (
+              {order.status === "completed" || order.status === "in transit" ? (
                 <span>Pickup: {formatFullTime(order.pickup_time)}</span>
               ) : (
                 ""
@@ -690,16 +690,16 @@ export function OrderList() {
   const stats = {
     total: orders.length,
     // Blue: In Transit
-    active: orders.filter((o) => o.status === "in_transit").length,
+    active: orders.filter((o) => o.status === "in transit").length,
     // Green: Completed
     completed: orders.filter(
       (o) => o.status === "delivered" || o.status === "complete"
     ).length,
-    // Yellow: Dispatching (Pending / Future)
+    // Yellow: Dispatching (Dispatching / Future)
     dispatching: orders.filter((o) => {
       const startTime = new Date(o.pickup_time);
       const now = new Date();
-      return now < startTime || o.status === "pending";
+      return now < startTime || o.status === "dispatching";
     }).length,
     // Red: Cancelled
     issues: orders.filter((o) => o.status === "cancelled").length,

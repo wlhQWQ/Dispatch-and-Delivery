@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class PackageEntity {
     
     @Id
-    @Column(name = "package_id")
+    @Column(name = "id")
     private String packageId;
     
     @Column(name = "order_id")

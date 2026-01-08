@@ -61,13 +61,13 @@ public class AdminController {
     }
 
     @GetMapping("/hubs/{hubId}")
-    public HubEntity getHub(@PathVariable Long hubId) {
+    public HubEntity getHub(@PathVariable String hubId) {
         return robotService.getHubById(hubId)
                 .orElseThrow(() -> new RuntimeException("Hub not found"));
     }
 
     @PutMapping("/hubs/{hubId}")
-    public HubEntity updateHub(@PathVariable Long hubId,
+    public HubEntity updateHub(@PathVariable String hubId,
                                @RequestParam double latitude,
                                @RequestParam double longitude,
                                @RequestParam String address) {
@@ -76,7 +76,7 @@ public class AdminController {
 
     @DeleteMapping("/hubs/{hubId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteHub(@PathVariable Long hubId) {
+    public void deleteHub(@PathVariable String hubId) {
         robotService.deleteHub(hubId);
     }
 
@@ -86,7 +86,7 @@ public class AdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public RobotEntity addRobot(@RequestParam boolean available,
                                 @RequestParam int battery,
-                                @RequestParam Long hubId,
+                                @RequestParam String hubId,
                                 @RequestParam double latitude,
                                 @RequestParam double longitude,
                                 @RequestParam double maxWeight,
@@ -102,16 +102,16 @@ public class AdminController {
     }
 
     @GetMapping("/robots/{robotId}")
-    public RobotEntity getRobot(@PathVariable Long robotId) {
+    public RobotEntity getRobot(@PathVariable String robotId) {
         return robotService.getRobotById(robotId)
                 .orElseThrow(() -> new RuntimeException("Robot not found"));
     }
 
     @PutMapping("/robots/{robotId}")
-    public RobotEntity updateRobot(@PathVariable Long robotId,
+    public RobotEntity updateRobot(@PathVariable String robotId,
                                    @RequestParam boolean available,
                                    @RequestParam int battery,
-                                   @RequestParam Long hubId,
+                                   @RequestParam String hubId,
                                    @RequestParam double latitude,
                                    @RequestParam double longitude,
                                    @RequestParam double maxWeight,
@@ -123,7 +123,7 @@ public class AdminController {
 
     @DeleteMapping("/robots/{robotId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteRobot(@PathVariable Long robotId) {
+    public void deleteRobot(@PathVariable String robotId) {
         robotService.deleteRobot(robotId);
     }
 
@@ -138,7 +138,7 @@ public class AdminController {
     // ===================== 查询推荐机器人 =====================
     // 返回该 Hub 上最便宜的 robot 和最快的 drone
     @GetMapping("/robots/recommend")
-    public RecommendedRobotsDto recommendRobots(@RequestParam Long hubId) {
+    public RecommendedRobotsDto recommendRobots(@RequestParam String hubId) {
         return new RecommendedRobotsDto(
                 robotService.findCheapestRobot(hubId)
                         .orElseThrow(() -> new RuntimeException("No available robot")),

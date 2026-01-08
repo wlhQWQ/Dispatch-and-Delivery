@@ -12,7 +12,7 @@ export const trackOrder = async (orderId, options = {}) => {
         // Mock tracking data
         resolve({
           order_id: orderId,
-          status: "in_transit",
+          status: "in transit",
           current_location: { lat: 40.7128, lng: -74.006 },
           estimated_arrival: "2024-01-01T11:30:00Z",
           from_address: "123 Library St",
