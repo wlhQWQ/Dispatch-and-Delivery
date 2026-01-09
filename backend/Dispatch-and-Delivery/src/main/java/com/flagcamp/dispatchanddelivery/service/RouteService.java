@@ -210,8 +210,12 @@ public class RouteService {
         // distance_traveled = speed × (1000/3600) × hasElapsed meters
         double progressRatio = Math.min(1.0, (speed * 1000 * hasElapsed) / (3600 * distance));
         
+        logger.debug("Order {} (pickup={}): progressRatio={}, speed={}km/h, elapsed={}s, distance={}m", 
+            orderId, pickup, progressRatio, speed, hasElapsed, distance);
+        
         // If progress >= 1.0, delivery is complete (at end location)
         if (progressRatio >= 1.0) {
+            logger.info("Order {} has arrived at destination (pickup={})!", orderId, pickup);
             LatLng endPosition = pathPoints.get(pathPoints.size() - 1);
             updatePosition(orderId, endPosition.lat, endPosition.lng);
             return new PositionResult(endPosition, true);

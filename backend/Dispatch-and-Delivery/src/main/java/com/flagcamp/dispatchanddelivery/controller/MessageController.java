@@ -31,12 +31,31 @@ public class MessageController {
     public ResponseEntity<?> confirmMailbox(
             @RequestBody ConfirmRequest req
     ) {
+        System.out.println("=== Confirm Request Received ===");
+        System.out.println("messageId: " + req.messageId);
+        System.out.println("orderId: " + req.orderId);
+        System.out.println("action: " + req.action);
+        System.out.println("time: " + req.time);
+        
         if (req.messageId == null || req.messageId.isEmpty()) {
+            System.out.println("ERROR: messageId is null or empty");
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "messageId is required"));
         }
 
-        messageService.confirmMailboxAction(req);
-        return ResponseEntity.noContent().build();
+        try {
+            messageService.confirmMailboxAction(req);
+            System.out.println("SUCCESS: Message confirmed");
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            System.out.println("ERROR: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage(), "messageId", req.messageId));
+        } catch (Exception e) {
+            System.out.println("UNEXPECTED ERROR: " + e.getClass().getName() + " - " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Internal server error: " + e.getMessage()));
+        }
     }
 }

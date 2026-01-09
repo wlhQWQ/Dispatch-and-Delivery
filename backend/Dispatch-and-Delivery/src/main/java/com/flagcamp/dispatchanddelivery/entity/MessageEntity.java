@@ -26,35 +26,36 @@ public class MessageEntity {
     @Id
     private String id;
     // 接收者
-    @Column(nullable = false)
+    @Column(name = "user_id",nullable = false)
     private String userId;
 
     // 关联订单
-    @Column()
+    @Column(name = "order_id")
     private String orderId;
 
     // 消息标题
-    @Column(nullable = false, length = 100)
+    @Column(name = "subject", nullable = false, length = 100)
     private String subject;
 
     // 消息正文
-    @Lob
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
     // 消息类型
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(name = "type", nullable = false, length = 30)
     private MessageType type;
 
     // 是否需要用户动作
     @Enumerated(EnumType.STRING)
-    @Column( length = 20)
+    @Column(name = "action_required", length = 20)
     private ActionRequired actionRequired;
 
     // 是否已读
-    @Column(nullable = false)
-    private boolean read;
-    @Column( nullable = false, updatable = false)
+    @Column(name = "has_read", nullable = false)
+    private boolean hasRead;
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     protected MessageEntity() {}
@@ -72,6 +73,6 @@ public class MessageEntity {
         this.content = content;
         this.type = type;
         this.actionRequired = actionRequired;
-        this.read = false;
-        this.createdAt =LocalDateTime.now();
+        this.hasRead = false;
+        this.createdAt = LocalDateTime.now();
 }}

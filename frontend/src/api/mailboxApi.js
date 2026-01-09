@@ -7,13 +7,12 @@ import { apiClient } from "./apiClient";
  * - 或者 [{ message, time, ... }]
  */
 export async function fetchMailboxMessages() {
-    const userId = Number(localStorage.getItem("userId")) || 1; // 测试期没登录就用 1
-    const res = await apiClient.get("/dashboard/mailbox", {
-        params: { userId },
-    });
-    return res.data;
+  const userId = localStorage.getItem("userId") || "user-bob"; // 默认使用 user-bob
+  const res = await apiClient.get("/dashboard/mailbox", {
+    params: { userId },
+  });
+  return res.data;
 }
-
 
 /**
  * 期望后端：POST /dashboard/mailbox/confirm
@@ -22,12 +21,12 @@ export async function fetchMailboxMessages() {
  * 如果你们后端将来用别的 URL，只改这里即可
  */
 export async function confirmMailboxAction({ messageId, orderId, action }) {
-    const body = {
-        messageId,
-        orderId,
-        action, // "PICKUP" | "DELIVERY" | "ACK"
-        time: new Date().toISOString(),
-    };
-    const res = await apiClient.post("/dashboard/mailbox/confirm", body);
-    return res.data;
+  const body = {
+    messageId,
+    orderId,
+    action, // "PICKUP" | "DELIVERY" | "ACK"
+    time: new Date().toISOString(),
+  };
+  const res = await apiClient.post("/dashboard/mailbox/confirm", body);
+  return res.data;
 }

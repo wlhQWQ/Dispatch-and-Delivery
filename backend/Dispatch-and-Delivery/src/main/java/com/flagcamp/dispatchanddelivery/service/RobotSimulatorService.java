@@ -52,14 +52,19 @@ public class RobotSimulatorService {
             simulateMovement(orderId, robotId, speed, 0, true);
             
             //到了，发布消息，机器人线程休眠
+            logger.info("Robot {} arrived at PICKUP location for order {}, publishing RobotArrivedEvent", robotId, orderId);
             publisher.publishEvent(new RobotArrivedEvent(orderId, "PICKUP"));
+            logger.info("RobotArrivedEvent published, now calling signalManager.awaitPickup...");
             signalManager.awaitPickup(orderId);
             
             //出发去deliver
+            logger.info("User confirmed pickup, robot {} resuming to delivery location for order {}", robotId, orderId);
             simulateMovement(orderId, robotId, speed, 0, false);
 
             //到了，发布消息，机器人线程休眠
+            logger.info("Robot {} arrived at DELIVERY location for order {}, publishing RobotArrivedEvent", robotId, orderId);
             publisher.publishEvent(new RobotArrivedEvent(orderId, "DELIVERED"));
+            logger.info("RobotArrivedEvent published, now calling signalManager.awaitDeliver...");
             signalManager.awaitDeliver(orderId);
 
             //机器人结束订单回家，设置为可用
@@ -84,6 +89,9 @@ public class RobotSimulatorService {
         int intervalSeconds = 5;
         int currentElapsed = hasElapsed;
 
+        logger.info("Starting movement simulation for order {}, pickup={}, speed={} km/h", 
+            orderId, pickup, speed);
+
         while(!arrived){
             Thread.sleep(intervalSeconds * 1000);
             currentElapsed += intervalSeconds;
@@ -91,12 +99,21 @@ public class RobotSimulatorService {
             RouteService.PositionResult result = routeService.computeAndStorePosition(orderId, speed, currentElapsed, pickup);
             LatLng position = result.getCurrentPosition();
             arrived = result.isArrived();
+            
+            logger.info("Movement update for order {}: elapsed={}s, position=({}, {}), arrived={}", 
+                orderId, currentElapsed, position.lat, position.lng, arrived);
+            
             RobotEntity robot = robotRepository.findById(robotId).get();
             robot.setCurrentLat(position.lat);
             robot.setCurrentLng(position.lng);
             robotRepository.save(robot);
+            
+            if (arrived) {
+                logger.info("Robot arrived! Breaking movement loop for order {}", orderId);
+            }
         }
         
+        logger.info("Movement completed for order {}, pickup={}", orderId, pickup);
         return arrived;
     }
 }

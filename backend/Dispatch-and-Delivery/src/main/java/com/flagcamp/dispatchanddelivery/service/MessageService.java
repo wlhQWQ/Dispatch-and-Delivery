@@ -38,7 +38,7 @@ public class MessageService {
         MessageEntity message = messageRepository.findById(req.messageId)
                 .orElseThrow(() -> new IllegalArgumentException("Message not found"));
 
-        message.setRead(true);
+        message.setHasRead(true);
         messageRepository.save(message);
         
         publisher.publishEvent(new MailboxActionConfirmedEvent(

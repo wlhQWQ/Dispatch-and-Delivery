@@ -8,7 +8,6 @@ import com.flagcamp.dispatchanddelivery.model.dto.OrderRequestDTO;
 import com.flagcamp.dispatchanddelivery.model.dto.OrderResponseDTO;
 import com.flagcamp.dispatchanddelivery.model.dto.RouteDTO;
 import com.flagcamp.dispatchanddelivery.model.enums.OrderStatus;
-import com.flagcamp.dispatchanddelivery.model.enums.RobotType;
 import com.flagcamp.dispatchanddelivery.model.response.DeliveryOptionsResponse;
 import com.flagcamp.dispatchanddelivery.model.response.PositionResponse;
 import com.flagcamp.dispatchanddelivery.model.response.RouteResponse;
@@ -17,6 +16,7 @@ import com.flagcamp.dispatchanddelivery.repository.PackageRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,14 +97,14 @@ public class OrderService {
             if (cheapestRobot.isPresent()) {
                 var robot = cheapestRobot.get();
                 int robotDuration = calculateDuration(robotRoute.distance(), robot.getSpeed());
-                double robotPrice = robot.getPrice();
-                robotResponse = RouteResponse.from(robotRoute, robotDuration, robotPrice, RobotType.ROBOT.name(), robot.getRobotId());
+                double robotPrice = calculatePrice(robotRoute.distance(), "robot"); 
+                robotResponse = RouteResponse.from(robotRoute, robotDuration, robotPrice, "robot", robot.getRobotId());
                 logger.info("Robot option - ID: {}, Duration: {}min, Price: ${}", robot.getRobotId(), robotDuration, robotPrice);
             } else {
                 // 如果没有可用机器人，使用默认值
-                int robotDuration = calculateDuration(robotRoute.distance(), RobotType.ROBOT.name());
-                double robotPrice = calculatePrice(robotRoute.distance(), RobotType.ROBOT.name());
-                robotResponse = RouteResponse.from(robotRoute, robotDuration, robotPrice, RobotType.ROBOT.name(), null);
+                int robotDuration = calculateDuration(robotRoute.distance(), "robot");
+                double robotPrice = calculatePrice(robotRoute.distance(), "robot");
+                robotResponse = RouteResponse.from(robotRoute, robotDuration, robotPrice, "robot", null);
                 logger.warn("No available robot found, using default pricing");
             }
 
@@ -113,14 +113,14 @@ public class OrderService {
             if (fastestDrone.isPresent()) {
                 var drone = fastestDrone.get();
                 int droneDuration = calculateDuration(droneRoute.distance(), drone.getSpeed());
-                double dronePrice = drone.getPrice();
-                droneResponse = RouteResponse.from(droneRoute, droneDuration, dronePrice, RobotType.DRONE.name(), drone.getRobotId());
+                double dronePrice = calculatePrice(droneRoute.distance(), "drone"); 
+                droneResponse = RouteResponse.from(droneRoute, droneDuration, dronePrice, "drone", drone.getRobotId());
                 logger.info("Drone option - ID: {}, Duration: {}min, Price: ${}", drone.getRobotId(), droneDuration, dronePrice);
             } else {
                 // 如果没有可用无人机，使用默认值
-                int droneDuration = calculateDuration(droneRoute.distance(), RobotType.DRONE.name());
-                double dronePrice = calculatePrice(droneRoute.distance(), RobotType.DRONE.name());
-                droneResponse = RouteResponse.from(droneRoute, droneDuration, dronePrice, RobotType.DRONE.name(), null);
+                int droneDuration = calculateDuration(droneRoute.distance(), "drone");
+                double dronePrice = calculatePrice(droneRoute.distance(), "drone");
+                droneResponse = RouteResponse.from(droneRoute, droneDuration, dronePrice, "drone", null);
                 logger.warn("No available drone found, using default pricing");
             }
 
@@ -132,6 +132,8 @@ public class OrderService {
         }
     }
 
+    @Transactional
+    //之前版本有机器人开跑但提交失败的问题，所以加入回滚
     public Map<String, Object> submitOrder(String userId, OrderRequestDTO orderRequest) {
         logger.info("Submitting order for user: {}", userId);
 
@@ -224,34 +226,21 @@ public class OrderService {
             logger.info("Route stored for order {} - Hub to start: {}m, Start to end: {}m",
                 orderId, hubToStartDistance, startToEndDistance);
 
-            // 8. 启动机器人
-            try {
-                startRobot(orderId, robot.getRobotId());
-                logger.info("Robot {} started for order {}", robot.getRobotId(), orderId);
-
-                // 9. 更新订单状态为dispatching
-                orderEntity.setStatus(OrderStatus.DISPATCHING.name());
-                orderEntity.setPickupTime(LocalDateTime.now());
-
-            } catch (Exception e) {
-                logger.warn("Failed to start robot for order {}: {}", orderId, e.getMessage());
-                orderEntity.setStatus(OrderStatus.PENDING.name());
-            }
-
-            // 10. 保存包裹和订单到数据库
+            // 8. 保存包裹到数据库
             packageRepository.save(packageEntity);
             logger.info("Package {} created for order {}", packageId, orderId);
             
-            // 11. 保存订单到数据库
+            // 9. 保存订单到数据库（先设为PENDING状态）
+            orderEntity.setStatus(OrderStatus.PENDING.name());
             orderRepository.save(orderEntity);
-            logger.info("Order {} completed with status: {}", orderId, orderEntity.getStatus());
+            logger.info("Order {} saved to database with status: PENDING", orderId);
 
-            // 12. 返回详细的订单信息
+            // 10. 返回详细的订单信息（事务会在方法结束时自动提交）
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("order_id", orderId);
-            response.put("status", orderEntity.getStatus());
-            response.put("robot_id", orderEntity.getRobotId());
+            response.put("status", "PENDING");
+            response.put("robot_id", robot.getRobotId());
             response.put("hub_id", hubEntity.getHubId());
             response.put("message", "Order submitted successfully");
 
@@ -273,15 +262,27 @@ public class OrderService {
         try {
             // Get route information
             RouteEntity route = routeService.getRoutesByOrderId(orderId);
+            // Get order to check status
+            OrderEntity order = orderRepository.findById(orderId).orElseThrow();
+            
 
             // Get current position from route
             double currentLat = route.getPositionLat();
             double currentLng = route.getPositionLng();
 
-            // Use pickup to end route as default tracking route
-            String encodedRoute = route.getPickupToEnd();
-
-            logger.info("Tracking data for order {}: position ({}, {})", orderId, currentLat, currentLng);
+            // Choose route based on order status
+            String encodedRoute;
+            if ("DISPATCHING".equalsIgnoreCase(order.getStatus()) || 
+                "PENDING".equalsIgnoreCase(order.getStatus())) {
+                // Robot is going from hub to pickup
+                encodedRoute = route.getHubToPickup();
+                logger.info("Tracking data for order {} (DISPATCHING): using hubToPickup route", orderId);
+            } else {
+                // Robot is going from pickup to delivery (in transit, complete, etc.)
+                encodedRoute = route.getPickupToEnd();
+                logger.info("Tracking data for order {} (IN TRANSIT): using pickupToEnd route", orderId);
+            }
+                logger.info("Tracking data for order {}: position ({}, {})", orderId, currentLat, currentLng);
 
             return new PositionResponse(orderId, encodedRoute, currentLat, currentLng);
 
@@ -319,20 +320,32 @@ public class OrderService {
         return basePrice + (distanceKm * pricePerKm);
     }
 
-    private void startRobot(String orderId, String robotId) {
-        // 机器人,启动!
-        robotSimulatorService.startRobotMission(orderId,robotId);
-        // 这里应该调用robotService来启动机器人，设置机器人状态为busy等
-        logger.info("Starting robot {} for order {} - Implementation pending", robotId, orderId);
-
-        // 占位实现 - 在真实环境中这里会：
-        // 1. 更新机器人状态为busy
-        // 2. 发送指令给机器人系统
-        // 3. 初始化路径跟踪
-        // robotService.updateRobotStatus(robotId, "BUSY", orderId);
-
-        // 目前简单模拟成功
+    /**
+     * 启动机器人任务（异步）- 公共方法，供Controller调用
+     * 此方法会启动机器人，并将订单状态更新为DISPATCHING
+     */
+    @Async
+    public void startRobotAsync(String orderId, String robotId) {
+        try {
+            logger.info("Starting robot {} for order {}", robotId, orderId);
+            
+            // 启动机器人模拟器
+            robotSimulatorService.startRobotMission(orderId, robotId);
+            
+            // 更新订单状态为DISPATCHING
+            OrderEntity order = orderRepository.findById(orderId).orElseThrow();
+            order.setStatus(OrderStatus.DISPATCHING.name());
+            order.setPickupTime(LocalDateTime.now());
+            orderRepository.save(order);
+            
+            logger.info("Robot {} started successfully, order {} status updated to DISPATCHING", robotId, orderId);
+            
+        } catch (Exception e) {
+            logger.error("Failed to start robot {} for order {}: {}", robotId, orderId, e.getMessage(), e);
+            // 如果启动失败，订单状态保持为PENDING
+        }
     }
+
 
 
     @Transactional

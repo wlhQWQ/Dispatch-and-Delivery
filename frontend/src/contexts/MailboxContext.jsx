@@ -129,9 +129,15 @@ export function MailboxProvider({ children }) {
           : [];
         if (!cancelled) {
           setMessages(normalized.sort((a, b) => b.timestamp - a.timestamp));
+          console.log(
+            `Initial load: ${normalized.length} messages from backend`
+          );
         }
       } catch (e) {
-        // 后端没写完也能 demo
+        // Backend not ready yet - use fallback sample for demo
+        console.warn(
+          "Backend not ready during initial load, using fallback sample data. Will retry when WebSocket connects."
+        );
         if (!cancelled) {
           setMessages(fallbackSample);
         }
@@ -165,7 +171,7 @@ export function MailboxProvider({ children }) {
 
       try {
         // 从localStorage获取userId（与API调用保持一致）
-        const userId = localStorage.getItem("userId") || "user-guest";
+        const userId = localStorage.getItem("userId") || "user-bob";
 
         // 在WebSocket URL中添加userId参数（后端现在需要这个参数）
         const wsUrlWithUserId = `${WS_URL}?userId=${encodeURIComponent(
@@ -176,10 +182,31 @@ export function MailboxProvider({ children }) {
         const ws = new WebSocket(wsUrlWithUserId);
         wsRef.current = ws;
 
-        ws.onopen = () => {
+        ws.onopen = async () => {
           retryRef.current.attempts = 0;
           setWsStatus("connected");
           console.log(`WebSocket connected for userId: ${userId}`);
+
+          // Refetch mailbox messages when connection is established
+          // This ensures we get real data from the backend
+          try {
+            const data = await fetchMailboxMessages();
+            console.log("Raw data from backend:", data);
+            const normalized = Array.isArray(data)
+              ? data.map(normalizeMessage)
+              : [];
+            console.log("Normalized messages:", normalized);
+            setMessages(normalized.sort((a, b) => b.timestamp - a.timestamp));
+            console.log(
+              `Loaded ${normalized.length} messages from backend for ${userId}`
+            );
+          } catch (e) {
+            console.warn(
+              "Could not fetch messages after WebSocket connection:",
+              e
+            );
+            // Keep existing messages (including fallback if that's what we have)
+          }
         };
 
         ws.onmessage = (evt) => {

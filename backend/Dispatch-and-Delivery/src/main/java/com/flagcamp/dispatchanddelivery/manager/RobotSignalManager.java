@@ -21,11 +21,14 @@ public class RobotSignalManager {
 
     //机器人等待确认pickup
     public void awaitPickup(String orderId) {
+        logger.info("Robot arriving at pickup location for order: {}, awaiting user confirmation...", orderId);
         CompletableFuture<Boolean> signal = new CompletableFuture<>();
         pickupOrders.put(orderId, signal);
         try {
             //设置12小时pickup窗口，过后超时
+            logger.info("Robot is now WAITING at pickup for order: {}", orderId);
             signal.get(12, TimeUnit.HOURS);
+            logger.info("User confirmed pickup for order: {}, robot resuming...", orderId);
         } catch (Exception e) {
             logger.error("Order pickup {} timed out", orderId, e);
             throw new RuntimeException("Timeout",e);
@@ -47,11 +50,14 @@ public class RobotSignalManager {
 
     //机器人等待确认deliver
     public void awaitDeliver(String orderId) {
+        logger.info("Robot arriving at delivery location for order: {}, awaiting user confirmation...", orderId);
         CompletableFuture<Boolean> signal = new CompletableFuture<>();
         deliverOrders.put(orderId, signal);
         try {
             //设置12小时delivery窗口，过后超时
+            logger.info("Robot is now WAITING at delivery point for order: {}", orderId);
             signal.get(12, TimeUnit.HOURS);
+            logger.info("User confirmed delivery for order: {}, robot returning to hub...", orderId);
         } catch (Exception e) {
             logger.error("Order delivery {} timed out", orderId, e);
             throw new RuntimeException("Timeout",e);

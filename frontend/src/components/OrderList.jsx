@@ -1,352 +1,3 @@
-// import { useState, useEffect } from "react";
-// import { useNavigate, useLocation } from "react-router-dom";
-// import {
-//   ChevronDown,
-//   ChevronUp,
-//   Package,
-//   Clock,
-//   CheckCircle,
-//   Truck,
-//   Plus,
-//   AlertCircle,
-//   Loader2,
-//   MapPin,
-//   Calendar,
-// } from "lucide-react";
-// import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-// import { Button } from "./ui/button";
-// import { getOrders } from "../api/orderApi"; // backend data
-
-// // --- Stats Card ---
-// // dashboard 顶部数据组件(Total orders;In transit;completed ;alerts)
-// function StatsCard({ title, value, icon: Icon, color }) {
-//   return (
-//     <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-//       <div className={`p-4 rounded-full ${color} bg-opacity-10`}>
-//         <Icon className={`w-6 h-6 ${color.replace("bg-", "text-")}`} />
-//       </div>
-//       <div>
-//         <p className="text-sm text-gray-500 font-medium">{title}</p>
-//         <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
-//       </div>
-//     </div>
-//   );
-// }
-
-// // 模拟数据 样式
-// // const mockOrders = [
-// //   {
-// //     id: "1",
-// //     orderNumber: "ORD-2024-001",
-// //     date: "2024-12-15",
-// //     status: "complete",
-// //     price: 299.99,
-// //     itemDetail: {
-// //       weight: 1,
-// //       items: [
-// //         { product: "Wireless Headphones", quantity: 1 },
-// //         { product: "Phone Case", quantity: 2 },
-// //       ],
-// //     },
-// //     FromAddress: "321 Main St",
-// //     shippingAddress: "123 Main St",
-// //     deliveryMethod: "Robot",
-// //     deliveryStarts: new Date("2024-12-17T17:00:00"), // ISO date format
-// //     duration: 60, // delivery duration in minutes
-// //   },
-// //   {
-// //     id: "2",
-// //     orderNumber: "ORD-2024-001",
-// //     date: "2024-12-15",
-// //     status: "cancelled",
-// //     price: 299.99,
-// //     itemDetail: {
-// //       weight: 1,
-// //       items: [
-// //         { product: "Wireless Headphones", quantity: 1 },
-// //         { product: "Phone Case", quantity: 2 },
-// //       ],
-// //     },
-// //     FromAddress: "321 Main St",
-// //     shippingAddress: "123 Main St",
-// //     deliveryMethod: "Robot",
-// //     deliveryStarts: new Date("2024-12-17T17:00:00"), // ISO date format
-// //     duration: 60, // delivery duration in minutes
-// //   },
-// //   {
-// //     id: "3",
-// //     orderNumber: "ORD-2024-002",
-// //     date: "2024-12-14",
-// //     status: "in transit",
-// //     price: 549.5,
-// //     itemDetail: {
-// //       weight: 1,
-// //       items: [
-// //         { product: "Wireless Headphones", quantity: 3 },
-// //         { product: "Phone Case", quantity: 2 },
-// //       ],
-// //     },
-// //     fromAddress: "321 Main St",
-// //     toAddress: "123 Main St",
-// //     deliveryMethod: "Drone",
-// //     //模拟的in transit数据，2分钟前开始派送
-// //     deliveryStarts: new Date(Date.now() - 2 * 60000), // Started 2 minutes ago
-// //     duration: 60, // delivery duration in minutes (1 hour to ensure it stays in transit)
-// //   },
-// // ];
-
-// // --- Order Card (Adapted to new API) ---
-// function OrderCard({ order }) {
-//   const [isExpanded, setIsExpanded] = useState(false);
-//   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
-
-//   // Status mapping
-//   // 读取backend ‘status’
-
-//   const getStatusConfig = (status) => {
-//     switch (status?.toLowerCase()) {
-//       case "delivered":
-//         return {
-//           label: "Delivered",
-//           color: "bg-green-100 text-green-800",
-//           icon: CheckCircle,
-//         };
-//       case "dispatching":
-//         return {
-//           label: "Dispatching",
-//           color: "bg-yellow-100 text-yellow-800",
-//           icon: Clock,
-//         };
-//       case "in transit":
-//       default:
-//         return {
-//           label: "In Transit",
-//           color: "bg-blue-100 text-blue-800",
-//           icon: Truck,
-//         };
-//     }
-//   };
-
-//   const statusInfo = getStatusConfig(order.status);
-//   const StatusIcon = statusInfo.icon;
-
-//   return (
-//     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-blue-300 transition-colors shadow-sm">
-//       <div
-//         onClick={() => setIsExpanded(!isExpanded)}
-//         className="w-full p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-4"
-//       >
-//         {/* Left: Icon & ID */}
-//         <div className="flex items-center gap-4">
-//           <div className={`p-3 rounded-xl ${statusInfo.color}`}>
-//             <StatusIcon className="w-6 h-6" />
-//           </div>
-//           <div>
-//             <div className="text-gray-900 font-bold text-lg">
-//               {order.order_id}
-//             </div>
-//             <div className="text-gray-500 text-xs flex items-center gap-1">
-//               <Calendar className="w-3 h-3" />
-//               {new Date(order.pickup_time).toLocaleDateString()}
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Right: Info & Status */}
-//         <div className="flex flex-1 justify-between sm:justify-end items-center gap-6 w-full sm:w-auto">
-//           <div className="text-left sm:text-right">
-//             <div className="text-gray-900 font-bold">
-//               ${Number(order.price).toFixed(2)}
-//             </div>
-//             <div className="text-gray-500 text-xs">
-//               {order.robot_type} • {order.weight}kg
-//             </div>
-//           </div>
-
-//           <div
-//             className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${statusInfo.color}`}
-//           >
-//             {statusInfo.label}
-//           </div>
-
-//           {isExpanded ? (
-//             <ChevronUp className="w-5 h-5 text-gray-400" />
-//           ) : (
-//             <ChevronDown className="w-5 h-5 text-gray-400" />
-//           )}
-//         </div>
-//       </div>
-
-//       {/* Expanded Details */}
-//       {isExpanded && (
-//         <div className="px-5 pb-5 border-t border-gray-100 bg-gray-50/50">
-//           <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
-//             {/* Description */}
-//             <div>
-//               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-//                 Package Contents
-//               </h3>
-//               <div className="bg-white p-3 rounded border border-gray-200 text-gray-700 text-sm leading-relaxed">
-//                 {order.item_description}
-//               </div>
-//             </div>
-
-//             {/* Address & Route Info */}
-//             <div className="space-y-4">
-//               <div className="flex gap-3 items-start">
-//                 <div className="mt-1 w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-//                 <div>
-//                   <h4 className="text-xs text-gray-400 uppercase">From</h4>
-//                   <p className="text-sm font-medium text-gray-900">
-//                     {order.from_address}
-//                   </p>
-//                 </div>
-//               </div>
-//               <div className="flex gap-3 items-start">
-//                 <div className="mt-1 w-2 h-2 rounded-full bg-green-500 shrink-0" />
-//                 <div>
-//                   <h4 className="text-xs text-gray-400 uppercase">To</h4>
-//                   <p className="text-sm font-medium text-gray-900">
-//                     {order.to_address}
-//                   </p>
-//                 </div>
-//               </div>
-//               <div className="text-xs text-gray-500 pl-5">
-//                 Est. Duration:{" "}
-//                 <span className="font-medium text-gray-900">
-//                   {order.duration} mins
-//                 </span>
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="mt-6 flex justify-end">
-//             {/* Only show track button if not delivered */}
-//             {order.status !== "delivered" && (
-//               <Button
-//                 onClick={() => setIsTrackingOpen(true)}
-//                 className="bg-black text-white hover:bg-gray-800"
-//               >
-//                 <Truck className="w-4 h-4 mr-2" /> Track Shipment
-//               </Button>
-//             )}
-//           </div>
-//         </div>
-//       )}
-
-//       {/* Tracking Modal */}
-//       <Dialog open={isTrackingOpen} onOpenChange={setIsTrackingOpen}>
-//         <DialogContent className="max-w-3xl">
-//           <DialogHeader>
-//             <DialogTitle>Tracking Order: {order.order_id}</DialogTitle>
-//           </DialogHeader>
-//           <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-//             <p className="text-gray-500">Map Visualization Component Here</p>
-//             {/* Note: Pass 'order.route' to your map component here */}
-//           </div>
-//         </DialogContent>
-//       </Dialog>
-//     </div>
-//   );
-// }
-
-// export function OrderList() {
-//   const navigate = useNavigate();
-//   const location = useLocation();
-//   const [orders, setOrders] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState(null);
-
-//   // connect backend
-//   const fetchOrders = async () => {
-//     try {
-//       setLoading(true);
-//       const data = await getOrders();
-//       setOrders(data || []);
-//       setError(null);
-//     } catch (err) {
-//       setError("Failed to load orders.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchOrders();
-//   }, []);
-//   useEffect(() => {
-//     if (location.state?.refresh) {
-//       fetchOrders();
-//       window.history.replaceState({}, document.title);
-//     }
-//   }, [location.state]);
-
-//   if (loading)
-//     return (
-//       <div className="h-64 flex justify-center items-center">
-//         <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
-//       </div>
-//     );
-//   if (error)
-//     return <div className="text-center py-10 text-red-500">{error}</div>;
-
-//   return (
-//     <div className="max-w-6xl mx-auto pb-10">
-//       <div className="flex justify-between items-center mb-8">
-//         <div>
-//           <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-//           <p className="text-gray-500">Overview of your delivery status</p>
-//         </div>
-//         <Button
-//           onClick={() => navigate("/dashboard/new-order")}
-//           className="bg-black hover:bg-gray-800 text-white shadow-lg"
-//         >
-//           <Plus className="w-5 h-5 mr-2" /> New Order
-//         </Button>
-//       </div>
-
-//       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-//         <StatsCard
-//           title="Total Orders"
-//           value={orders.length}
-//           icon={Package}
-//           color="bg-blue-500"
-//         />
-//         <StatsCard
-//           title="In Transit"
-//           value={orders.filter((o) => o.status === "in transit").length}
-//           icon={Truck}
-//           color="bg-yellow-500"
-//         />
-//         <StatsCard
-//           title="Completed"
-//           value={orders.filter((o) => o.status === "delivered").length}
-//           icon={CheckCircle}
-//           color="bg-green-500"
-//         />
-//         <StatsCard
-//           title="Cancelled"
-//           value="0"
-//           icon={AlertCircle}
-//           color="bg-red-500"
-//         />
-//       </div>
-
-//       <div className="space-y-4">
-//         {orders.length === 0 ? (
-//           <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-//             <p className="text-gray-500">No active orders found.</p>
-//           </div>
-//         ) : (
-//           orders.map((order) => (
-//             <OrderCard key={order.order_id || Math.random()} order={order} />
-//           ))
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -420,8 +71,8 @@ function OrderCard({ order }) {
   };
 
   // Status mapping
-  // 读取backend ‘status’
-  // 需要backend四个状态：
+  // 读取backend 'status'
+  // 需要backend五个状态：pending, dispatching, in transit, completed, cancelled
   const getDeliveryStatus = () => {
     // 1. Cancelled Status
     if (order.status === "cancelled") {
@@ -433,14 +84,24 @@ function OrderCard({ order }) {
       };
     }
 
+    // 2. Pending Status (等待处理)
+    if (order.status === "pending" || order.status === "PENDING") {
+      return {
+        label: "Pending",
+        color: "bg-gray-50 text-gray-700 border-gray-200",
+        icon: Clock,
+        showTrack: false,
+      };
+    }
+
     const now = new Date();
     const startTime = new Date(order.pickup_time);
     const endTime = new Date(
       startTime.getTime() + (order.duration || 0) * 60000
     );
 
-    // 2. Delivered Status
-    if (order.status === "completed") {
+    // 3. Delivered Status
+    if (order.status === "completed" || order.status === "complete") {
       return {
         label: "Delivered",
         // 专门用于展开详情的完整时间
@@ -452,17 +113,21 @@ function OrderCard({ order }) {
       };
     }
 
-    // 3. Dispatch at (Future Status)
-    if (now < startTime || order.status == "dispatching") {
+    // 4. Dispatching Status
+    if (
+      order.status === "dispatching" ||
+      order.status === "DISPATCHING" ||
+      now < startTime
+    ) {
       return {
         label: "Dispatching",
         color: "bg-yellow-50 text-yellow-700 border-yellow-200",
         icon: Clock,
-        showTrack: false,
+        showTrack: true,
       };
     }
 
-    // 4. In Transit (Default Status)
+    // 5. In Transit (Default Status)
     return {
       label: "In Transit",
       color: "bg-blue-50 text-blue-700 border-blue-200",
@@ -672,35 +337,43 @@ export function OrderList() {
 
   useEffect(() => {
     fetchOrders(); // 第一次加载
-
-    // // 设置定时器，每 5 秒自动刷新一次数据
-    // const intervalId = setInterval(() => {
-    //   // 这里调用 getOrders 时最好不要 setLoading(true)，否则页面会一直闪烁转圈
-    //   // 我们可以做一个静默刷新的逻辑
-    //   getOrders().then((data) => {
-    //     setOrders(data || []);
-    //   });
-    // }, 5000); // 5000毫秒 = 5秒
-
-    // // 组件卸载时清除定时器，防止内存泄漏
-    // return () => clearInterval(intervalId);
   }, []);
+
+  // 监听路由跳转，如果有 refresh 标志则重新加载
+  useEffect(() => {
+    if (location.state?.refresh) {
+      fetchOrders();
+      // 清除 state，避免多次刷新
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // 计算 Stats
   const stats = {
     total: orders.length,
+    // Gray: Pending
+    pending: orders.filter(
+      (o) => o.status === "pending" || o.status === "PENDING"
+    ).length,
+    // Yellow: Dispatching
+    dispatching: orders.filter((o) => {
+      const startTime = new Date(o.pickup_time);
+      const now = new Date();
+      return (
+        o.status === "dispatching" ||
+        o.status === "DISPATCHING" ||
+        now < startTime
+      );
+    }).length,
     // Blue: In Transit
     active: orders.filter((o) => o.status === "in transit").length,
     // Green: Completed
     completed: orders.filter(
-      (o) => o.status === "delivered" || o.status === "complete"
+      (o) =>
+        o.status === "delivered" ||
+        o.status === "complete" ||
+        o.status === "completed"
     ).length,
-    // Yellow: Dispatching (Dispatching / Future)
-    dispatching: orders.filter((o) => {
-      const startTime = new Date(o.pickup_time);
-      const now = new Date();
-      return now < startTime || o.status === "dispatching";
-    }).length,
     // Red: Cancelled
     issues: orders.filter((o) => o.status === "cancelled").length,
   };
@@ -734,18 +407,24 @@ export function OrderList() {
       </div>
 
       {/* Stats Cards: 颜色与 OrderCard 状态一一对应 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
         <StatsCard
-          title="In Transit"
-          value={stats.active}
-          icon={Truck}
-          color="bg-blue-500 text-blue-700" // 对应 In Transit 状态色
+          title="Pending"
+          value={stats.pending}
+          icon={Clock}
+          color="bg-gray-500 text-gray-700" // 对应 Pending 状态色
         />
         <StatsCard
           title="Dispatching"
           value={stats.dispatching}
           icon={Clock}
           color="bg-yellow-500 text-yellow-700" // 对应 Dispatch 状态色
+        />
+        <StatsCard
+          title="In Transit"
+          value={stats.active}
+          icon={Truck}
+          color="bg-blue-500 text-blue-700" // 对应 In Transit 状态色
         />
         <StatsCard
           title="Completed"

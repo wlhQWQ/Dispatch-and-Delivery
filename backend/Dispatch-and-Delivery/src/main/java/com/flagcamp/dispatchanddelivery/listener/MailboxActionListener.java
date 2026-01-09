@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,11 +61,17 @@ public class MailboxActionListener {
         }
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Async
     public void onRobotArrival(RobotArrivedEvent event) {
+        log.info("RobotArrivedEvent received: orderId={}, message={}", 
+            event != null ? event.orderId() : null, 
+            event != null ? event.message() : null);
+            
         if (event == null || event.orderId() == null || event.message() == null 
         ) {
+            log.warn("RobotArrivedEvent is invalid, ignoring");
             return;
         }
         String orderId = event.orderId();
@@ -71,18 +79,21 @@ public class MailboxActionListener {
        
         switch (message) {
             case "PICKUP" -> {
+                log.info("Processing PICKUP arrival for order: {}", orderId);
                 OrderEntity order = orderService.findById(orderId);
                 String userId = order.getUserId();
                 //推送消息
                 messageService.notifyPickupArrived(userId, orderId);
-                
+                log.info("Pickup notification sent to user: {} for order: {}", userId, orderId);
             }
 
             case "DELIVERED" -> {
+                log.info("Processing DELIVERED arrival for order: {}", orderId);
                 OrderEntity order = orderService.findById(orderId);
                 String userId = order.getUserId();
                 //推送消息
                 messageService.notifyDeliveryArrived(userId, orderId);
+                log.info("Delivery notification sent to user: {} for order: {}", userId, orderId);
             }
 
             default -> log.warn("Unhandled message: {}", message);

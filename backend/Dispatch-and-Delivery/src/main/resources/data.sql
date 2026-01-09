@@ -1,8 +1,3 @@
--- Delete existing data in correct order (respecting foreign key constraints)
-DELETE FROM orders;
-DELETE FROM robots;
-DELETE FROM hubs;
-
 -- Sample hub data with real San Francisco locations
 INSERT INTO hubs (id, address, hub_lat, hub_lng) VALUES
 ('HUB-001', 'Downtown Hub - Market St & 4th St, San Francisco, CA 94103', 37.7855, -122.4056),
@@ -31,6 +26,21 @@ INSERT INTO robots (id, available, battery, hub_id, current_lat, current_lng, ma
 ('ROBOT-009', true, 84, 'HUB-003', 37.7694, -122.4862, 30.0, 11, 0.44, 'robot'),
 ('DRONE-005', true, 88, 'HUB-003', 37.7694, -122.4862, 13.0, 43, 1.28, 'drone'),
 ('DRONE-006', true, 92, 'HUB-003', 37.7694, -122.4862, 14.0, 41, 1.22, 'drone');
+
+-- Sample package data
+INSERT INTO packages (id, order_id, item_description, weight) VALUES
+('PKG-001', 'ORD-001', 'Electronics - Laptop Computer', 3.5),
+('PKG-002', 'ORD-002', 'Books - Set of 5 Novels', 2.8),
+('PKG-003', 'ORD-003', 'Clothing - Winter Jacket', 1.2),
+('PKG-004', 'ORD-004', 'Kitchen Appliances - Blender', 4.5),
+('PKG-005', 'ORD-005', 'Toys - Board Game Set', 1.8),
+('PKG-006', 'ORD-006', 'Food - Gourmet Gift Basket', 2.3),
+('PKG-007', 'ORD-007', 'Office Supplies - Desk Organizer Set', 3.2),
+('PKG-008', 'ORD-008', 'Beauty Products - Skincare Set', 1.5),
+('PKG-009', 'ORD-009', 'Electronics - Wireless Headphones', 0.8),
+('PKG-010', 'ORD-010', 'Sports Equipment - Yoga Mat and Blocks', 2.5),
+('PKG-011', 'ORD-011', 'Home Decor - Picture Frame Set', 3.8),
+('PKG-012', 'ORD-012', 'Pet Supplies - Dog Toys and Treats', 2.1);
 
 -- Sample order data with real San Francisco locations and coordinates
 INSERT INTO orders (id, submit_time, user_id, from_address, to_address, from_lat, from_lng, to_lat, to_lng, package_id, status, price, pickup_time, duration, robot_id, robot_type) VALUES
@@ -118,3 +128,10 @@ INSERT INTO orders (id, submit_time, user_id, from_address, to_address, from_lat
  37.7786, -122.3893, 37.8025, -122.4194,
  'PKG-012', 'dispatching', 35.25, NULL, 28, NULL, 'robot');
 
+-- Sample message data
+INSERT INTO messages (id, user_id, order_id, subject, content, type, action_required, has_read, created_at) VALUES
+-- Message 1: Unread pickup notification
+('MSG-001', 'user-bob', 'ORD-002', 'Robot arrived at pickup', 'Your robot has arrived at pickup location. Please confirm pickup to continue.', 'ARRIVED', 'PICKUP', FALSE, '2025-01-16 09:40:00'),
+
+-- Message 2: Read delivery notification
+('MSG-002', 'user-bob', 'ORD-006', 'Order delivered', 'Your order has been delivered. Please confirm delivery.', 'ARRIVED', 'DELIVERY', TRUE, '2025-01-18 14:00:00');

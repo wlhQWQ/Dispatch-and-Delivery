@@ -33,7 +33,7 @@ public class MessageDTO {
             };
         }
         dto.time = message.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant();
-        dto.read = message.isRead();
+        dto.read = message.isHasRead();
         return dto;
     }
 }
