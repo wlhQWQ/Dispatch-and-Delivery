@@ -101,7 +101,11 @@ function OrderCard({ order }) {
     );
 
     // 3. Delivered Status
-    if (order.status === "completed" || order.status === "complete") {
+    if (
+      order.status === "completed" ||
+      order.status === "complete" ||
+      order.status === "delivered"
+    ) {
       return {
         label: "Delivered",
         // 专门用于展开详情的完整时间

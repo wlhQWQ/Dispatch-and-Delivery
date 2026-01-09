@@ -35,7 +35,7 @@ public class MessageService {
 
     @Transactional
     public void confirmMailboxAction(ConfirmRequest req) {
-        MessageEntity message = messageRepository.findById(req.messageId)
+        MessageEntity message = messageRepository.findById(req.getMessageId())
                 .orElseThrow(() -> new IllegalArgumentException("Message not found"));
 
         message.setHasRead(true);

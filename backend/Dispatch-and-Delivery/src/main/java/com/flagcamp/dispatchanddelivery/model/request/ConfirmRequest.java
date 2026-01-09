@@ -1,5 +1,6 @@
 package com.flagcamp.dispatchanddelivery.model.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -8,8 +9,15 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConfirmRequest {
-    public String messageId;
-    public String orderId;
-    public String action; // "PICKUP" | "DELIVERY" | "ACK"
-    public String time;   // ISO string
+    @JsonProperty("messageId")
+    private String messageId;
+    
+    @JsonProperty("orderId")
+    private String orderId;
+    
+    @JsonProperty("action")
+    private String action; // "PICKUP" | "DELIVERY" | "ACK"
+    
+    @JsonProperty("time")
+    private String time;   // ISO string
 }

@@ -32,12 +32,12 @@ public class MessageController {
             @RequestBody ConfirmRequest req
     ) {
         System.out.println("=== Confirm Request Received ===");
-        System.out.println("messageId: " + req.messageId);
-        System.out.println("orderId: " + req.orderId);
-        System.out.println("action: " + req.action);
-        System.out.println("time: " + req.time);
+        System.out.println("messageId: " + req.getMessageId());
+        System.out.println("orderId: " + req.getOrderId());
+        System.out.println("action: " + req.getAction());
+        System.out.println("time: " + req.getTime());
         
-        if (req.messageId == null || req.messageId.isEmpty()) {
+        if (req.getMessageId() == null || req.getMessageId().isEmpty()) {
             System.out.println("ERROR: messageId is null or empty");
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "messageId is required"));
@@ -50,7 +50,7 @@ public class MessageController {
         } catch (IllegalArgumentException e) {
             System.out.println("ERROR: " + e.getMessage());
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", e.getMessage(), "messageId", req.messageId));
+                    .body(Map.of("error", e.getMessage(), "messageId", req.getMessageId()));
         } catch (Exception e) {
             System.out.println("UNEXPECTED ERROR: " + e.getClass().getName() + " - " + e.getMessage());
             e.printStackTrace();

@@ -55,6 +55,18 @@ public class OrderService {
     }
 
     private OrderResponseDTO convertToResponseDTO(OrderEntity entity) {
+        // Fetch package information
+        String itemDescription = "";
+        float weight = 0.0f;
+        
+        if (entity.getPackageId() != null) {
+            PackageEntity packageEntity = packageRepository.findById(entity.getPackageId()).orElse(null);
+            if (packageEntity != null) {
+                itemDescription = packageEntity.getItemDescription();
+                weight = (float) packageEntity.getWeight();
+            }
+        }
+        
         return OrderResponseDTO.builder()
                 .order_id(entity.getOrderId())
                 .from_address(entity.getFromAddress())
@@ -65,8 +77,8 @@ public class OrderService {
                         entity.getPickupTime() : LocalDateTime.now())
                 .duration(entity.getDuration())
                 .price((float) entity.getPrice())
-                .item_description("") // Add item_description field to OrderEntity if needed
-                .weight(0.0f) // Add weight field to OrderEntity if needed
+                .item_description(itemDescription)
+                .weight(weight)
                 .robot_type(entity.getRobotType())
                 .build();
     }
@@ -366,14 +378,22 @@ public class OrderService {
     @Transactional
     public void confirmDelivery(String orderId, String userId
     ){
+        System.out.println("=== confirmDelivery called ===");
+        System.out.println("orderId: " + orderId);
+        System.out.println("userId: " + userId);
+        
         //update order
         OrderEntity order = orderRepository.findById(orderId)
             .orElseThrow();
+        System.out.println("Order found, current status: " + order.getStatus());
+        
         order.setStatus("delivered");
         orderRepository.save(order);
+        System.out.println("Order status updated to: delivered");
         
         //update 
         robotSignalManager.userConfirmedDeliver(orderId);
+        System.out.println("Robot signal sent for delivery confirmation");
     }
 
     
