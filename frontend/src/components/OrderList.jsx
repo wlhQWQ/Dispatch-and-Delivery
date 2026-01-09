@@ -26,7 +26,12 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import Tracking from "./Tracking";
-import { getOrders } from "../api/orderApi"; // backend data
+import { toast } from "sonner";
+import {
+  getOrders,
+  getPaymentStatusFromURL,
+  clearPaymentStatusFromURL,
+} from "../api/orderApi"; // backend data
 
 // --- Stats Card ---
 // dashboard 顶部数据组件(In transit;dispatching;completed ;cancelled)
@@ -307,9 +312,7 @@ function OrderCard({ order }) {
             </DialogTitle>
           </DialogHeader>
           <div className="h-[500px] bg-gray-50 flex items-center justify-center">
-            <div className="p-6 bg-white rounded-full shadow-sm flex flex-col items-center gap-3 border border-gray-100">
-              <MapPin className="w-10 h-10 text-gray-300" />
-            </div>
+            {/* <div className=" p-6 bg-white rounded-full shadow-sm flex flex-col items-center gap-3 border border-gray-100"></div> */}
             <Tracking order_id={order.order_id} robot_type={order.robot_type} />
           </div>
         </DialogContent>
@@ -341,6 +344,20 @@ export function OrderList() {
 
   useEffect(() => {
     fetchOrders(); // 第一次加载
+
+    // 检查支付状态
+    const paymentStatus = getPaymentStatusFromURL();
+    if (paymentStatus === "success") {
+      toast.success("Payment successful! Your order has been placed.", {
+        duration: 4000,
+      });
+      clearPaymentStatusFromURL();
+    } else if (paymentStatus === "failed" || paymentStatus === "cancelled") {
+      toast.error("Payment failed. Please try again.", {
+        duration: 4000,
+      });
+      clearPaymentStatusFromURL();
+    }
   }, []);
 
   // 监听路由跳转，如果有 refresh 标志则重新加载

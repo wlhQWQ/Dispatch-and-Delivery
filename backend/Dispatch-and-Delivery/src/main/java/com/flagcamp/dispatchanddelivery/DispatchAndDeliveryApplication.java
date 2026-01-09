@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 public class DispatchAndDeliveryApplication {
     
     public static void main(String[] args) {
+        
         Dotenv dotenv = Dotenv.configure()
             .directory("../../")
             .ignoreIfMissing()

@@ -100,7 +100,7 @@ export function ShippingForm() {
                 <AddressAutocomplete
                   value={fromAddress}
                   onChange={setFromAddress}
-                  placeholder="e.g. 123 Library St"
+                  // placeholder="e.g. 123 Library St"
                   icon={MapPin}
                 />
               </div>
@@ -112,7 +112,7 @@ export function ShippingForm() {
                 <AddressAutocomplete
                   value={toAddress}
                   onChange={setToAddress}
-                  placeholder="e.g. Dormitory A"
+                  // placeholder="e.g. Dormitory A"
                   icon={MapPin}
                 />
               </div>

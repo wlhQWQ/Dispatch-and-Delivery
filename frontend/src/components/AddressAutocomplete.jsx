@@ -1,17 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { MapPin, Loader2 } from "lucide-react";
+import { useMapsLibrary } from "@vis.gl/react-google-maps";
 
-// mock的地址库
-const MOCK_SUGGESTIONS = [
-  "123 Library St, College Station, TX",
-  "Dormitory Building A, University Dr",
-  "Teaching Building B, Science Park",
-  "Cafeteria, Student Center",
-  "Memorial Student Center (MSC), Texas A&M",
-  "Kyle Field, 756 Houston St",
-  "456 Receiver Ave, San Francisco, CA",
-  "101 Silicon Valley Blvd, San Jose, CA",
-];
+// San Francisco 坐标 (用于限制搜索范围)
+const SF_CENTER = { lat: 37.7749, lng: -122.4194 };
+const SEARCH_RADIUS_METERS = 300000; // 限制在sf center coord 600km
 
 export function AddressAutocomplete({
   value,
@@ -24,7 +17,18 @@ export function AddressAutocomplete({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const wrapperRef = useRef(null);
-  1;
+
+  // 使用 Google Maps Places library
+  const placesLib = useMapsLibrary("places");
+  const [autocompleteService, setAutocompleteService] = useState(null);
+
+  // 初始化 Google Places services
+  useEffect(() => {
+    if (!placesLib) return;
+
+    setAutocompleteService(new placesLib.AutocompleteService());
+  }, [placesLib]);
+
   // 同步外部传进来的 value
   useEffect(() => {
     setQuery(value);
@@ -41,32 +45,52 @@ export function AddressAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 模拟搜索逻辑
+  // 使用 Google Places Autocomplete API 搜索
   const handleInputChange = (e) => {
     const val = e.target.value;
     setQuery(val);
-    onChange(val); // 通知父组件更新
+    onChange(val);
 
-    if (val.length > 1) {
+    if (val.length > 2 && autocompleteService && placesLib) {
       setIsLoading(true);
       setShowDropdown(true);
 
-      // 模拟 API 延迟，更有真实感
-      setTimeout(() => {
-        const filtered = MOCK_SUGGESTIONS.filter((addr) =>
-          addr.toLowerCase().includes(val.toLowerCase())
-        );
-        setSuggestions(filtered);
-        setIsLoading(false);
-      }, 300);
+      // 调用 Google Places Autocomplete API
+      autocompleteService.getPlacePredictions(
+        {
+          input: val,
+          types: ["address"], // 只返回地址类型
+          location: new window.google.maps.LatLng(SF_CENTER.lat, SF_CENTER.lng),
+          radius: SEARCH_RADIUS_METERS, // 600km 半径
+          componentRestrictions: { country: "us" }, // 限制为美国
+        },
+        (predictions, status) => {
+          setIsLoading(false);
+
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            predictions
+          ) {
+            // 转换成我们需要的格式
+            const formattedSuggestions = predictions.map((p) => ({
+              description: p.description,
+              placeId: p.place_id,
+            }));
+            setSuggestions(formattedSuggestions);
+          } else {
+            setSuggestions([]);
+          }
+        }
+      );
     } else {
       setShowDropdown(false);
+      setSuggestions([]);
     }
   };
 
   const handleSelect = (suggestion) => {
-    setQuery(suggestion);
-    onChange(suggestion);
+    setQuery(suggestion.description);
+    onChange(suggestion.description);
     setShowDropdown(false);
   };
 
@@ -94,23 +118,23 @@ export function AddressAutocomplete({
       {showDropdown && suggestions.length > 0 && (
         <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           <ul>
-            {suggestions.map((addr, idx) => (
+            {suggestions.map((suggestion, idx) => (
               <li
-                key={idx}
-                onClick={() => handleSelect(addr)}
+                key={suggestion.placeId || idx}
+                onClick={() => handleSelect(suggestion)}
                 className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 transition-colors border-b border-gray-50 last:border-none"
               >
                 <div className="p-2 bg-gray-100 rounded-full shrink-0">
                   <MapPin className="w-4 h-4 text-gray-500" />
                 </div>
                 <span className="text-sm text-gray-700 font-medium">
-                  {addr}
+                  {suggestion.description}
                 </span>
               </li>
             ))}
           </ul>
           <div className="bg-gray-50 px-4 py-2 text-[10px] text-gray-400 uppercase tracking-wider font-bold text-right">
-            Powered by Dispatch Map
+            Powered by Google Maps
           </div>
         </div>
       )}

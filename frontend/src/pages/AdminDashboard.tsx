@@ -124,7 +124,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen w-full">
       {/* 顶部栏 */}
-      <div className="flex justify-between items-center mb-8">
+      {/* <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
         <button 
             onClick={handleMockPayment}
@@ -132,7 +132,7 @@ const AdminDashboard: React.FC = () => {
         >
             💳 Test Stripe Payment
         </button>
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
