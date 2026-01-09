@@ -15,7 +15,6 @@ import com.google.maps.model.LatLng;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class RouteService {
@@ -155,8 +154,7 @@ public class RouteService {
         // need to add the route from hub to pickup, but for the sake of test, whatever
 
         RouteEntity routeEntity = new RouteEntity( 
-            UUID.randomUUID().toString(), 
-            orderId, 
+            orderId,  // orderId is now the primary key
             hubToPickup,
             pickupToEnd,
             positionLat,
@@ -346,8 +344,7 @@ public class RouteService {
             throw new IllegalArgumentException("Route not found for order: " + orderId);
         }
         RouteEntity updatedRoute = new RouteEntity(
-            route.getRouteId(),
-            route.getOrderId(), 
+            orderId,  // orderId is the primary key
             route.getHubToPickup(),
             route.getPickupToEnd(),
             lat, 
@@ -367,10 +364,17 @@ public class RouteService {
      * @throws IllegalArgumentException if route is not found for the given orderId
      */
     public RouteEntity getRoutesByOrderId(String orderId) {
-        RouteEntity routeEntity =  routeRepository.findByOrderId(orderId);
+        logger.debug("Searching for route with orderId: {}", orderId);
+        
+        // Since orderId is now the primary key, use findById directly
+        RouteEntity routeEntity = routeRepository.findById(orderId).orElse(null);
+        
         if (routeEntity == null) {
+            logger.error("Route not found for orderId: {}", orderId);
             throw new IllegalArgumentException("Route not found for order: " + orderId);
         }
+        
+        logger.debug("Found route for orderId: {}", orderId);
         return routeEntity;
     }
 

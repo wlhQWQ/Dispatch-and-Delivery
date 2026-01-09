@@ -5,8 +5,7 @@ import com.flagcamp.dispatchanddelivery.entity.RouteEntity;
 import org.springframework.data.repository.CrudRepository;
 
 public interface RouteRepository extends CrudRepository<RouteEntity, String> {
-    // Custom query methods for Redis entity
-    RouteEntity findByOrderId(String orderId);
-
+    // orderId is now the primary key, so we can use findById directly
+    // No need for custom findByOrderId method
 }
 

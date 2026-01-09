@@ -1,6 +1,7 @@
 package com.flagcamp.dispatchanddelivery.service;
 
 import com.flagcamp.dispatchanddelivery.entity.OrderEntity;
+import com.flagcamp.dispatchanddelivery.entity.PackageEntity;
 import com.flagcamp.dispatchanddelivery.entity.RouteEntity;
 import com.flagcamp.dispatchanddelivery.manager.RobotSignalManager;
 import com.flagcamp.dispatchanddelivery.model.dto.OrderRequestDTO;
@@ -12,6 +13,7 @@ import com.flagcamp.dispatchanddelivery.model.response.DeliveryOptionsResponse;
 import com.flagcamp.dispatchanddelivery.model.response.PositionResponse;
 import com.flagcamp.dispatchanddelivery.model.response.RouteResponse;
 import com.flagcamp.dispatchanddelivery.repository.OrderRepository;
+import com.flagcamp.dispatchanddelivery.repository.PackageRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class OrderService {
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
     
     private final OrderRepository orderRepository;
+    private final PackageRepository packageRepository;
     private final RouteService routeService;
     private final RobotService robotService;
     private final RobotSimulatorService robotSimulatorService;
@@ -151,7 +154,18 @@ public class OrderService {
             orderEntity.setRobotType(orderRequest.getRobotType());
             orderEntity.setSubmitTime(LocalDateTime.now());
 
-            // 2. 通过robotId获取robot信息和hub位置
+            // 2. 创建包裹实体
+            String packageId = UUID.randomUUID().toString();
+            PackageEntity packageEntity = new PackageEntity();
+            packageEntity.setPackageId(packageId);
+            packageEntity.setOrderId(orderId);
+            packageEntity.setItemDescription(orderRequest.getItemDescription());
+            packageEntity.setWeight(orderRequest.getWeight());
+            
+            // 设置订单中的包裹ID
+            orderEntity.setPackageId(packageId);
+
+            // 3. 通过robotId获取robot信息和hub位置
             if (orderRequest.getRobotId() == null || orderRequest.getRobotId().isEmpty()) {
                 throw new IllegalArgumentException("Robot ID is required");
             }
@@ -165,7 +179,7 @@ public class OrderService {
             orderEntity.setRobotId(robot.getRobotId());
             logger.info("Using selected robot {} for order {}", robot.getRobotId(), orderId);
 
-            // 3. 获取hub信息
+            // 4. 获取hub信息
             var hub = robotService.getHubById(robot.getHubId());
             if (hub.isEmpty()) {
                 throw new IllegalArgumentException("Hub not found for robot: " + robot.getHubId());
@@ -176,13 +190,13 @@ public class OrderService {
             double hubLng = hubEntity.getHubLng();
             logger.info("Found hub {} at ({}, {}) for robot {}", hubEntity.getHubId(), hubLat, hubLng, robot.getRobotId());
 
-            // 4. 计算从hub到起始点的路由
+            // 5. 计算从hub到起始点的路由
             List<RouteDTO> hubToStartRoutes = routeService.computeRoute(
                 hubLat, hubLng,
                 orderRequest.getFromLat(), orderRequest.getFromLng()
             );
 
-            // 5. 根据机器人类型选择合适的路由
+            // 6. 根据机器人类型选择合适的路由
             RouteDTO hubToStartRoute;
             if ("DRONE".equalsIgnoreCase(orderRequest.getRobotType())) {
                 hubToStartRoute = hubToStartRoutes.get(1); // 无人机使用直线路径
@@ -192,7 +206,7 @@ public class OrderService {
                 logger.info("Using robot route from hub to start point");
             }
 
-            // 6. 存储完整路由信息
+            // 7. 存储完整路由信息
             long hubToStartDistance = hubToStartRoute.distance();
 
             // 使用前端提供的距离（从preview选项中获得）
@@ -210,12 +224,12 @@ public class OrderService {
             logger.info("Route stored for order {} - Hub to start: {}m, Start to end: {}m",
                 orderId, hubToStartDistance, startToEndDistance);
 
-            // 7. 启动机器人
+            // 8. 启动机器人
             try {
                 startRobot(orderId, robot.getRobotId());
                 logger.info("Robot {} started for order {}", robot.getRobotId(), orderId);
 
-                // 8. 更新订单状态为dispatching
+                // 9. 更新订单状态为dispatching
                 orderEntity.setStatus(OrderStatus.DISPATCHING.name());
                 orderEntity.setPickupTime(LocalDateTime.now());
 
@@ -224,11 +238,15 @@ public class OrderService {
                 orderEntity.setStatus(OrderStatus.PENDING.name());
             }
 
-            // 9. 保存订单到数据库
+            // 10. 保存包裹和订单到数据库
+            packageRepository.save(packageEntity);
+            logger.info("Package {} created for order {}", packageId, orderId);
+            
+            // 11. 保存订单到数据库
             orderRepository.save(orderEntity);
             logger.info("Order {} completed with status: {}", orderId, orderEntity.getStatus());
 
-            // 10. 返回详细的订单信息
+            // 12. 返回详细的订单信息
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("order_id", orderId);

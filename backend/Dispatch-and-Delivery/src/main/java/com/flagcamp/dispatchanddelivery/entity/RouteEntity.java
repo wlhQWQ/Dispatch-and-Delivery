@@ -14,9 +14,6 @@ import lombok.NoArgsConstructor;
 public class RouteEntity {
     
     @Id
-    private String routeId;
-    
-    @Indexed  // Index for efficient querying by orderId
     private String orderId;
     
     private String hubToPickup;

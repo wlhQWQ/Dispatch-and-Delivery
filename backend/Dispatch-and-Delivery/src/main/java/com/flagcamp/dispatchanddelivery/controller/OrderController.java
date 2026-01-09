@@ -27,6 +27,7 @@ public class OrderController {
 
     // 2. POST /dashboard/orders/preview -> Preview delivery options
     @PostMapping("/deliveryOptions/preview")
+    @PostMapping("/deliveryOptions/preview")
     public ResponseEntity<Object> previewOptions(@RequestBody Map<String, Object> payload) {
         Double fromLat = ((Number) payload.get("from_lat")).doubleValue();
         Double fromLng = ((Number) payload.get("from_lng")).doubleValue();
@@ -37,6 +38,7 @@ public class OrderController {
     }
 
     // 3. POST /dashboard/orders/submit -> Submit order
+    @PostMapping("/deliveryOptions/submit")
     @PostMapping("/deliveryOptions/submit")
     public ResponseEntity<Object> submitOrder(@RequestBody Map<String, Object> payload) {
         OrderRequestDTO dto = new OrderRequestDTO();
@@ -51,14 +53,14 @@ public class OrderController {
         dto.setRoute((String) payload.get("route"));
         dto.setDistance(((Number) payload.get("distance")).longValue());
 
-        // Extract lat/lng coordinates from payload
+        // Extract lat/lng coordinates from payload using snake_case
         dto.setFromLat(((Number) payload.get("from_lat")).doubleValue());
         dto.setFromLng(((Number) payload.get("from_lng")).doubleValue());
         dto.setToLat(((Number) payload.get("to_lat")).doubleValue());
         dto.setToLng(((Number) payload.get("to_lng")).doubleValue());
 
         // TODO: Get userId from SecurityContext in production
-        String userId = "1"; // Hardcoded for now
+        String userId = "user-bob"; // Hardcoded for now
         Map<String, Object> result = orderService.submitOrder(userId, dto);
         return ResponseEntity.ok(result);
     }
