@@ -1,10 +1,12 @@
 package com.flagcamp.dispatchanddelivery.service;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flagcamp.dispatchanddelivery.mailbox.ConfirmRequest;
-import com.flagcamp.dispatchanddelivery.mailbox.MailboxMessage;
-import com.flagcamp.dispatchanddelivery.model.*;
+import com.flagcamp.dispatchanddelivery.entity.MessageEntity;
+import com.flagcamp.dispatchanddelivery.model.dto.MessageDTO;
+import com.flagcamp.dispatchanddelivery.model.enums.ActionRequired;
+import com.flagcamp.dispatchanddelivery.model.enums.MessageType;
+import com.flagcamp.dispatchanddelivery.model.event.MailboxActionConfirmedEvent;
+import com.flagcamp.dispatchanddelivery.model.event.MessageCreatedEvent;
+import com.flagcamp.dispatchanddelivery.model.request.ConfirmRequest;
 import com.flagcamp.dispatchanddelivery.repository.MessageRepository;
-import com.flagcamp.dispatchanddelivery.socket.MailboxWsHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -17,10 +19,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MessageService {
     private final MessageRepository messageRepository;
-    private final ObjectMapper objectMapper ;
     private final ApplicationEventPublisher publisher;
 
-    public List<MailboxMessage> getMailbox(Long userId) {
+    public List<MessageDTO> getMailbox(String userId) {
         if (userId == null) {
             throw new IllegalArgumentException("userId cannot be null");
         }
@@ -28,16 +29,18 @@ public class MessageService {
         return messageRepository
                 .findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .map(MailboxMessage::from)
+                .map(MessageDTO::from)
                 .toList();
     }
 
     @Transactional
     public void confirmMailboxAction(ConfirmRequest req) {
-        Message message = messageRepository.findById(req.messageId)
+        MessageEntity message = messageRepository.findById(req.getMessageId())
                 .orElseThrow(() -> new IllegalArgumentException("Message not found"));
 
-        message.setRead(true);
+        message.setHasRead(true);
+        messageRepository.save(message);
+        
         publisher.publishEvent(new MailboxActionConfirmedEvent(
                 message.getUserId(),
                 message.getOrderId(),
@@ -46,15 +49,15 @@ public class MessageService {
     }
 
     @Transactional
-    public Message createMessage(
-            Long userId,
-            Long orderId,
+    public MessageEntity createMessage(
+            String userId,
+            String orderId,
             String subject,
             String content,
             MessageType type,
             ActionRequired actionRequired
     ) {
-        Message message = new Message(
+        MessageEntity message = new MessageEntity(
                 userId,
                 orderId,
                 subject,
@@ -62,14 +65,14 @@ public class MessageService {
                 type,
                 actionRequired
         );
-        Message saved = messageRepository.save(message);
+        MessageEntity saved = messageRepository.save(message);
 
         publisher.publishEvent(new MessageCreatedEvent(saved.getId(), saved.getUserId()));
         return saved;
     }
     @Transactional
-    public Message notifyDeliveryConfirmed(Long userId, Long orderId) {
-        Message message = createMessage(
+    public MessageEntity notifyDeliveryConfirmed(String userId, String orderId) {
+        MessageEntity message = createMessage(
                 userId,
                 orderId,
                 "Delivery confirmed",
@@ -83,9 +86,9 @@ public class MessageService {
 
 
     @Transactional
-    public Message notifyPickupArrived(Long userId, Long orderId) {
+    public MessageEntity notifyPickupArrived(String userId, String orderId) {
 
-        Message message = createMessage(
+        MessageEntity message = createMessage(
                 userId,
                 orderId,
                 "Robot arrived at pickup",
@@ -97,9 +100,9 @@ public class MessageService {
         return message;
     }
     @Transactional
-    public Message notifyPickupConfirmed(Long userId, Long orderId) {
+    public MessageEntity notifyPickupConfirmed(String userId, String orderId) {
 
-        Message message = createMessage(
+        MessageEntity message = createMessage(
                 userId,
                 orderId,
                 "Pickup confirmed",
@@ -112,7 +115,7 @@ public class MessageService {
     }
 
     @Transactional
-    public Message notifyDeliveryArrived(Long userId, Long orderId) {
+    public MessageEntity notifyDeliveryArrived(String userId, String orderId) {
         return createMessage(
                 userId,
                 orderId,

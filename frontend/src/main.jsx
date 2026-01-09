@@ -4,6 +4,9 @@ import {
   RouterProvider,
   Navigate,
 } from "react-router-dom";
+
+import { APIProvider } from "@vis.gl/react-google-maps";
+
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
@@ -14,7 +17,7 @@ import { DeliveryOptions } from "./components/DeliveryOptions";
 import AdminDashboard from "./pages/AdminDashboard";
 import { Mailbox } from "./components/Mailbox";
 import { MailboxProvider } from "./contexts/MailboxContext";
-import StripeMockPage from "./pages/StripeMockPage"
+import StripeMockPage from "./pages/StripeMockPage";
 
 import { Toaster } from "./components/ui/sonner";
 import "./index.css";
@@ -49,7 +52,11 @@ const router = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <Dashboard />,
+    element: (
+      <MailboxProvider>
+        <Dashboard />
+      </MailboxProvider>
+    ),
     errorElement: <NotFound />,
     children: [
       {
@@ -77,11 +84,11 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")).render(
-    <>
-        <MailboxProvider>
-            <RouterProvider router={router} />
-            <Toaster />
-        </MailboxProvider>
-    </>
+  <APIProvider
+    apiKey={import.meta.env.VITE_GOOGLE_MAP_API_KEY}
+    libraries={["geocoding", "geometry"]}
+  >
+    <RouterProvider router={router} />
+    <Toaster />
+  </APIProvider>
 );
-

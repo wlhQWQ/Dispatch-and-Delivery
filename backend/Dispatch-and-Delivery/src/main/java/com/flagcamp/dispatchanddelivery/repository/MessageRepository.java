@@ -1,11 +1,11 @@
 package com.flagcamp.dispatchanddelivery.repository;
 
-import com.flagcamp.dispatchanddelivery.model.Message;
+import com.flagcamp.dispatchanddelivery.entity.MessageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface MessageRepository extends JpaRepository<Message, Long> {
+public interface MessageRepository extends JpaRepository<MessageEntity, String> {
 
-    List<Message> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<MessageEntity> findByUserIdOrderByCreatedAtDesc(String userId);
 }

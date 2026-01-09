@@ -6,8 +6,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+
 
 @Configuration
+@EnableRedisRepositories(basePackages = "com.flagcamp.dispatchanddelivery.repository")
 public class RedisConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -23,3 +26,5 @@ public class RedisConfig {
         };
     }
 }
+
+

@@ -36,14 +36,21 @@ const Login = () => {
       form.append("username", values.username);
       form.append("password", values.password);
 
-      await axios.post("/login", form, {
+      const response = await axios.post("/login", form, {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         withCredentials: true,
       });
 
-      localStorage.setItem("username", values.username);
+      // Save email and userId from server response
+      // Backend returns 'username' which is actually the email
+      if (response.data && response.data.username) {
+        localStorage.setItem("email", response.data.username);
+      }
+      if (response.data && response.data.userId) {
+        localStorage.setItem("userId", response.data.userId);
+      }
 
       toast.success("Login successful");
       navigate("/dashboard");

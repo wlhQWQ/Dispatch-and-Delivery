@@ -1,1 +1,4 @@
 rootProject.name = 'Dispatch-and-Delivery'
+
+// Disable IDE init scripts
+gradle.startParameter.excludedTaskNames.clear()

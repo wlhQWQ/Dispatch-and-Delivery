@@ -1,14 +1,15 @@
 package com.flagcamp.dispatchanddelivery.controller;
 
-import com.flagcamp.dispatchanddelivery.model.RegisterBody;
+import com.flagcamp.dispatchanddelivery.model.request.RegisterBody;
 import com.flagcamp.dispatchanddelivery.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import com.flagcamp.dispatchanddelivery.model.response.RegisterResponse;
 
-record RegisterResponse(String message) {}
+
 
 @RestController
 public class UserController {

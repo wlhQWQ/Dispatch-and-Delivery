@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import stripImportVersions from "./vite/plugins/stripImportVersions"; 
+import stripImportVersions from "./vite/plugins/stripImportVersions";
 
 export default defineConfig({
   plugins: [react(), stripImportVersions(), tailwindcss()],
@@ -19,24 +19,26 @@ export default defineConfig({
     },
     proxy: {
       "/signup": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
       "/login": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
       "/logout": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/dashboard": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
       "/ws": {
-        target: "ws://127.0.0.1:8000",
+        target: "ws://127.0.0.1:8080",
         ws: true,
         changeOrigin: true,
       },
-
-      // "/api": { target: "http://localhost:8000", changeOrigin: true },
     },
   },
   build: {

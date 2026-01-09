@@ -38,7 +38,21 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
                 .formLogin(form -> form
-                        .successHandler((req, res, auth) -> res.setStatus(HttpStatus.OK.value()))
+                        .loginProcessingUrl("/login")  // Explicitly set login URL
+                        .successHandler((req, res, auth) -> {
+                            res.setStatus(HttpStatus.OK.value());
+                            res.setContentType("application/json");
+                            res.setCharacterEncoding("UTF-8");
+                            
+                            // Get userId from authenticated user
+                            Object principal = auth.getPrincipal();
+                            if (principal instanceof com.flagcamp.dispatchanddelivery.security.CustomUserDetails userDetails) {
+                                String userId = userDetails.getUserId();
+                                String json = String.format("{\"userId\":\"%s\",\"username\":\"%s\"}", 
+                                        userId, userDetails.getUsername());
+                                res.getWriter().write(json);
+                            }
+                        })
                         .failureHandler(new SimpleUrlAuthenticationFailureHandler())
                 )
                 .logout(logout -> logout

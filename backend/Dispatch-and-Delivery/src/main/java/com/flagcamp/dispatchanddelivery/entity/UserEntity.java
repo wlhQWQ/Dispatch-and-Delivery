@@ -5,7 +5,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Table("users")
 public record UserEntity(
-        @Id Long id,
+        @Id String id,
         String email,
         String password,
         boolean enabled

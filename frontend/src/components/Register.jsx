@@ -1,9 +1,9 @@
 import React from "react";
-import axios from "axios";
 import { useForm } from "react-hook-form";
 import { User, Lock, Mail } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { apiClient } from "../api/apiClient";
 
 import {
   Form,
@@ -15,14 +15,12 @@ import {
 } from "./ui/form";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { BASE_URL } from "../constants";
 
 const Register = () => {
   const navigate = useNavigate();
 
   const form = useForm({
     defaultValues: {
-      username: "",
       email: "",
       password: "",
     },
@@ -30,7 +28,7 @@ const Register = () => {
 
   const onSubmit = async (values) => {
     try {
-      await axios.post("/signup", {
+      await apiClient.post("/signup", {
         email: values.email,
         password: values.password,
       });
@@ -47,7 +45,6 @@ const Register = () => {
       console.error("Signup error:", err);
     }
   };
-
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
